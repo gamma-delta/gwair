@@ -1,0 +1,14 @@
+player {
+    physic-body width=12 height=16
+    collider
+    friction 10.0
+    zlevel 100
+    colored-hitbox 0xff00cc_ff
+}
+
+wall {
+    dimensions w=16 h=16
+    collider
+    zlevel 100
+    texture "tiles/wall"
+}
