@@ -3,6 +3,7 @@ mod update;
 use aglet::CoordVec;
 use broccoli::{aabb::pin::AabbPin, Tree};
 use itertools::Itertools;
+use macroquad::prelude::Color;
 use palkia::prelude::*;
 
 use crate::{
@@ -52,24 +53,51 @@ impl StateGameplay {
             .unwrap();
         world.insert_resource(PlayerController::new(player));
 
-        world
-            .spawn()
-            .with(Positioned::new(CoordVec::new(0, 32)))
-            .with(Mover::new())
-            .with(HasDims::new(8 * 8, 4))
-            .with(Velocitized::still())
-            .with(ColoredHitbox::new(macroquad::prelude::PINK))
-            .with(Collider)
-            .build();
-        world
-            .spawn()
-            .with(Positioned::new(CoordVec::new(32, 16)))
-            .with(Mover::new())
-            .with(HasDims::new(8 * 8, 4))
-            .with(Velocitized::still())
-            .with(ColoredHitbox::new(macroquad::prelude::PINK))
-            .with(Collider)
-            .build();
+        const TEMP_LEVEL: &str = r"
+XX
+XX
+    
+    
+   XX           XXX
+   XX           XXX
+           XX              XXXX
+           XX              
+       XXXXXX  
+       XXXXXX        
+                     XXX
+XXX                  XXX
+ 
+
+XXXXXXXXXXXXX   XXX        XXXXX
+XXXXXXXXXXXXX   XXX        XXXXX
+        
+        
+                      XXX
+        
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        ";
+
+        for (y, line) in TEMP_LEVEL.lines().enumerate() {
+            for (x, ch) in line.chars().enumerate() {
+                if ch != ' ' {
+                    let wx = (x as i32) * 8 - 140;
+                    let wy = (y as i32) * 8 - 100;
+                    world
+                        .spawn()
+                        .with(Positioned::new(CoordVec::new(wx, wy)))
+                        .with(Mover::new())
+                        .with(HasDims::new(8, 8))
+                        .with(ColoredHitbox::new(Color::new(
+                            (x as f32 + y as f32).sin() * 0.5 + 0.5,
+                            0.0,
+                            1.0,
+                            1.0,
+                        )))
+                        .with(Collider)
+                        .build();
+                }
+            }
+        }
 
         StateGameplay {
             world,

@@ -4,6 +4,7 @@ use glam::Vec2;
 pub struct ControlState {
     pub movement: Vec2,
     pub jump: bool,
+    pub reset: bool,
 }
 
 impl ControlState {
@@ -27,7 +28,12 @@ impl ControlState {
 
         let jump =
             is_key_down(KeyCode::Space) || is_key_down(KeyCode::RightBracket);
+        let reset = is_key_down(KeyCode::R);
 
-        Self { movement, jump }
+        Self {
+            movement,
+            jump,
+            reset,
+        }
     }
 }

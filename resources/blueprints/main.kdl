@@ -1,5 +1,5 @@
 player {
-    physic-body width=12 height=16
+    physic-body width=10 height=12
     collider
     zlevel 100
     colored-hitbox 0xff00cc_ff
