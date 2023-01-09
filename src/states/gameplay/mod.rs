@@ -6,6 +6,7 @@ use itertools::Itertools;
 use palkia::prelude::*;
 
 use crate::{
+    controls::ControlState,
     ecm::{
         self,
         component::{
@@ -13,7 +14,7 @@ use crate::{
             ZLevel,
         },
         message::{MsgDraw, MsgPhysicsTick, MsgTick},
-        resource::{Camera, HitboxTracker, ThePlayerEntity},
+        resource::{Camera, HitboxTracker, PlayerController},
     },
     fabctx::FabCtx,
     geom::{EntityAABB, Hitbox},
@@ -49,7 +50,7 @@ impl StateGameplay {
                 &ctx,
             )
             .unwrap();
-        world.insert_resource(ThePlayerEntity(player));
+        world.insert_resource(PlayerController::new(player));
 
         world
             .spawn()
@@ -78,12 +79,16 @@ impl StateGameplay {
     }
 
     pub fn on_update(&mut self) {
-        update::move_player(self);
-
         update::do_collision(self);
+        {
+            let mut controller =
+                self.world.write_resource::<PlayerController>().unwrap();
+            let controls = ControlState::calculate();
+            controller.update_from_controls(controls, &self.world, self.dt);
+        }
+        self.world.dispatch_to_all(MsgPhysicsTick::new(self.dt));
 
         self.world.dispatch_to_all(MsgTick);
-        self.world.dispatch_to_all(MsgPhysicsTick::new(self.dt));
         self.world.finalize();
     }
 

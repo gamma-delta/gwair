@@ -19,6 +19,7 @@ pub fn setup_world(world: &mut World) {
     world.register_component::<Mover>();
     world.register_component::<Velocitized>();
     world.register_component::<FrictionHaver>();
+    world.register_component::<KinematicState>();
 
     world.register_component::<AgeTracker>();
     world.register_component::<LimitedTimeOffer>();

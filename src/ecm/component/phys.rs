@@ -1,4 +1,4 @@
-use aglet::CoordVec;
+use aglet::{CoordVec, Direction4Set, Direction8, Direction8Set};
 use dialga::factory::ComponentFactory;
 use kdl::KdlNode;
 use macroquad::prelude::Vec2;
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ecm::{
-        message::{MsgDraw, MsgPhysicsTick},
+        message::{MsgDraw, MsgPhysicsTick, MsgRecvHit, MsgSendHit, MsgTick},
         resource::HitboxTracker,
     },
     fabctx::FabCtx,
@@ -171,6 +171,29 @@ impl Component for Velocitized {
     }
 }
 
+/// Tracks the directions this is touching something in.
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct KinematicState {
+    pub touching: Direction8Set,
+}
+
+impl Component for KinematicState {
+    fn register_handlers(builder: HandlerBuilder<Self>) -> HandlerBuilder<Self>
+    where
+        Self: Sized,
+    {
+        builder
+            .handle_write(|this, msg: MsgSendHit, _, _| {
+                this.touching.insert(msg.normal());
+                msg
+            })
+            .handle_write(|this, msg: MsgPhysicsTick, _, _| {
+                this.touching = Direction8Set::empty();
+                msg
+            })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FrictionHaver {
     pub friction: f32,
@@ -208,7 +231,9 @@ impl Component for Collider {
     }
 }
 
-/// Factory for [`HasDims`], [`Mover`], and [`Velocitized`]
+// FACTORIES
+
+/// Factory for [`HasDims`], [`Mover`], [`Velocitized`], and [`KinematicState`].
 pub struct PhysicFactory;
 
 impl ComponentFactory<FabCtx> for PhysicFactory {
@@ -232,6 +257,7 @@ impl ComponentFactory<FabCtx> for PhysicFactory {
         });
         builder.insert(Mover::new());
         builder.insert(Velocitized::still());
+        builder.insert(KinematicState::default());
         Ok(builder)
     }
 }

@@ -1,15 +1,14 @@
 mod phys;
+mod player;
+pub use phys::*;
+pub use player::*;
 
 use std::{collections::hash_set, iter};
 
 use ahash::AHashSet;
-pub use phys::*;
 
 use aglet::CoordVec;
 use palkia::prelude::*;
-
-pub struct ThePlayerEntity(pub Entity);
-impl Resource for ThePlayerEntity {}
 
 /// Where the world is viewed from
 #[derive(Debug)]

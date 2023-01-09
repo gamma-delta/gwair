@@ -1,6 +1,6 @@
 use super::{StateGameplay, PLAYER_ACC, PLAYER_WALK_SPEED};
 
-use aglet::CoordVec;
+use aglet::{CoordVec, Direction4, Direction8};
 use ahash::AHashMap;
 use broccoli::{aabb::pin::AabbPin, Tree};
 use itertools::Itertools;
@@ -12,38 +12,10 @@ use crate::{
         actions,
         component::{HasDims, Mover, Positioned, Velocitized},
         message::{MsgRecvHit, MsgSendHit},
-        resource::{Camera, HitboxTracker, ThePlayerEntity, TreeHolder},
+        resource::{Camera, HitboxTracker, PlayerController, TreeHolder},
     },
     geom::{EntityAABB, Hitbox},
 };
-
-pub(super) fn move_player(state: &mut StateGameplay) {
-    let player = state.world.get_resource::<ThePlayerEntity>().unwrap().0;
-
-    {
-        let mut dv = mq::Vec2::ZERO;
-        if mq::is_key_down(mq::KeyCode::W) {
-            dv.y -= 1.0;
-        }
-        if mq::is_key_down(mq::KeyCode::S) {
-            dv.y += 1.0;
-        }
-        if mq::is_key_down(mq::KeyCode::A) {
-            dv.x -= 1.0;
-        }
-        if mq::is_key_down(mq::KeyCode::D) {
-            dv.x += 1.0;
-        }
-        let dv = dv.normalize_or_zero() * PLAYER_ACC;
-        let mut player_vel =
-            state.world.query::<&mut Velocitized>(player).unwrap();
-        player_vel.impulse(dv, PLAYER_WALK_SPEED, state.dt);
-        drop(player_vel);
-
-        let mut camera = state.world.write_resource::<Camera>().unwrap();
-        let player_pos = state.world.query::<&Positioned>(player).unwrap().pos;
-    }
-}
 
 pub(super) fn do_collision(state: &mut StateGameplay) {
     let hitboxeds = {
@@ -96,25 +68,14 @@ pub(super) fn do_collision(state: &mut StateGameplay) {
                 pos_comp.pos = pos;
             }
 
-            let bonkees = match (bonk_x.bonk, bonk_y.bonk) {
-                (Some(it), None) | (None, Some(it)) => vec![it],
-                (Some((xe, xn)), Some((ye, yn))) => {
-                    if xe == ye {
-                        // Prevent double-collisions
-                        vec![(xe, (xn + yn).normalize())]
-                    } else {
-                        vec![(xe, xn), (ye, yn)]
-                    }
-                }
-                (None, None) => Vec::new(),
-            };
+            let bonkees = calculate_bonkees(bonk_x, bonk_y);
             for (bonked, norm) in bonkees {
                 state
                     .world
                     .dispatch(profile.e, MsgSendHit::new(bonked, norm));
                 state
                     .world
-                    .dispatch(bonked, MsgRecvHit::new(profile.e, -norm));
+                    .dispatch(bonked, MsgRecvHit::new(profile.e, norm));
             }
         }
     }
@@ -126,10 +87,72 @@ pub(super) fn do_collision(state: &mut StateGameplay) {
         .insert_resource(TreeHolder::new(data, hitboxeds_for_tree));
 }
 
+fn calculate_bonkees(
+    bonk_x: AxisMove,
+    bonk_y: AxisMove,
+) -> Vec<(Entity, Direction8)> {
+    let bonkees = match (bonk_x.bonk, bonk_y.bonk) {
+        (Some((e, pos)), None) => {
+            vec![(
+                e,
+                if pos {
+                    Direction8::East
+                } else {
+                    Direction8::West
+                },
+            )]
+        }
+        (None, Some((e, pos))) => {
+            vec![(
+                e,
+                if pos {
+                    Direction8::South
+                } else {
+                    Direction8::North
+                },
+            )]
+        }
+        (None, None) => Vec::new(),
+        (Some((xe, xp)), Some((ye, yp))) => {
+            if xe == ye {
+                // Prevent double-collisions
+                let dir = match (yp, xp) {
+                    (true, true) => Direction8::SouthEast,
+                    (true, false) => Direction8::SouthWest,
+                    (false, true) => Direction8::NorthEast,
+                    (false, false) => Direction8::NorthEast,
+                };
+                vec![(xe, dir)]
+            } else {
+                vec![
+                    (
+                        xe,
+                        if xp {
+                            Direction8::East
+                        } else {
+                            Direction8::West
+                        },
+                    ),
+                    (
+                        ye,
+                        if yp {
+                            Direction8::South
+                        } else {
+                            Direction8::North
+                        },
+                    ),
+                ]
+            }
+        }
+    };
+    bonkees
+}
+
+/// The boolean represents "is the normal in the positive direction of this axis?"
 struct AxisMove {
     remainder: Vec2,
     new_center: CoordVec,
-    bonk: Option<(Entity, Vec2)>,
+    bonk: Option<(Entity, bool)>,
 }
 
 #[derive(Debug, Default)]
@@ -206,11 +229,11 @@ fn do_axis_movement<'t>(
                         collision_found = Some((
                             hit.e,
                             if horiz {
-                                mq::vec2(-sign as f32, 0.0)
+                                mq::vec2(sign as f32, 0.0)
                             } else {
-                                mq::vec2(0.0, -sign as f32)
+                                mq::vec2(0.0, sign as f32)
                             },
-                        ))
+                        ));
                     }
                 },
             );
@@ -220,7 +243,7 @@ fn do_axis_movement<'t>(
                 return AxisMove {
                     new_center: pos,
                     remainder,
-                    bonk: Some((other, norm)),
+                    bonk: Some((other, sign > 0)),
                 };
             } else {
                 pos = proposed_pos;

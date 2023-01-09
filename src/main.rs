@@ -5,6 +5,7 @@ use macroquad::prelude::*;
 use resources::Resources;
 use states::StateGameplay;
 
+mod controls;
 mod ecm;
 mod fabctx;
 mod geom;

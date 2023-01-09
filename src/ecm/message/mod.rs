@@ -1,4 +1,4 @@
-use aglet::CoordVec;
+use aglet::{CoordVec, Direction4, Direction4Set, Direction8};
 use macroquad::prelude::Vec2;
 use palkia::prelude::*;
 
@@ -28,14 +28,17 @@ pub struct MsgDraw {
 impl Message for MsgDraw {}
 
 /// Sent to colliders when an entity hits it.
+///
+/// The normal is the direction it is getting hit from,
+/// so it points from `bonker` to the entitty getting this message.
 #[derive(Debug)]
 pub struct MsgRecvHit {
     bonker: Entity,
-    normal: Vec2,
+    normal: Direction8,
 }
 impl Message for MsgRecvHit {}
 impl MsgRecvHit {
-    pub fn new(bonker: Entity, normal: Vec2) -> Self {
+    pub fn new(bonker: Entity, normal: Direction8) -> Self {
         Self { bonker, normal }
     }
 
@@ -43,22 +46,24 @@ impl MsgRecvHit {
         self.bonker
     }
 
-    pub fn normal(&self) -> Vec2 {
+    /// Directions can be orthagonal or cornered; hence direction8
+    pub fn normal(&self) -> Direction8 {
         self.normal
     }
 }
 
 /// Sent to movers when it hits a collider.
 ///
-/// The normal is the direction it bounces against (so the normal of the face of the collider).
+/// The normal is the direction it is hitting in, so it points from the
+/// entity getting this message to `bonkee`.
 #[derive(Debug)]
 pub struct MsgSendHit {
     bonkee: Entity,
-    normal: Vec2,
+    normal: Direction8,
 }
 impl Message for MsgSendHit {}
 impl MsgSendHit {
-    pub fn new(bonkee: Entity, normal: Vec2) -> Self {
+    pub fn new(bonkee: Entity, normal: Direction8) -> Self {
         Self { bonkee, normal }
     }
 
@@ -66,7 +71,7 @@ impl MsgSendHit {
         self.bonkee
     }
 
-    pub fn normal(&self) -> Vec2 {
+    pub fn normal(&self) -> Direction8 {
         self.normal
     }
 }
