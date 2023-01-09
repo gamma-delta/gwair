@@ -159,12 +159,12 @@ impl Component for Velocitized {
         Self: Sized,
     {
         builder.handle_write(|this, msg: MsgPhysicsTick, me, access| {
-            if this.vel.length_squared() < 1.0 * msg.dt() {
-                this.vel = Vec2::ZERO;
-            }
+            // if this.vel.length_squared() < 1.0 * msg.dt() {
+            //     this.vel = Vec2::ZERO;
+            // }
 
             let mut mover = access.query::<&mut Mover>(me).unwrap();
-            mover.move_by(this.vel);
+            mover.move_by(this.vel * msg.dt());
 
             msg
         })

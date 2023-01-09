@@ -1,7 +1,6 @@
 player {
     physic-body width=12 height=16
     collider
-    friction 10.0
     zlevel 100
     colored-hitbox 0xff00cc_ff
 }
