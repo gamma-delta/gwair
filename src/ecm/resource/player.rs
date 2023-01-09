@@ -9,7 +9,7 @@ use crate::{
     ecm::component::{KinematicState, Positioned, Velocitized},
 };
 
-const WALK_TERMINAL_VEL: f32 = 20.0 * 8.0;
+const WALK_TERMINAL_VEL: f32 = 12.0 * 8.0;
 /// Can express these in terms of "seconds reqd to get to/from terminal vel."
 const WALK_ACCEL: f32 = WALK_TERMINAL_VEL / 0.3;
 /// "stop moving in 2 frames"
@@ -17,17 +17,18 @@ const WALK_FRICTION: f32 = WALK_TERMINAL_VEL * 60.0 / 2.0;
 const WALK_TURN_ACCEL: f32 = WALK_TERMINAL_VEL * 60.0;
 
 const JUMP_HEIGHT: f32 = 40.0;
-const TIME_TO_JUMP_APEX: f32 = 0.3;
+const TIME_TO_JUMP_APEX: f32 = 0.4;
 /// Derived from kinematics
 const JUMP_IMPULSE_VEL: f32 = 2.0 * JUMP_HEIGHT / TIME_TO_JUMP_APEX;
 /// gravity when rising from a jump
 const JUMP_GRAVITY: f32 = JUMP_IMPULSE_VEL / TIME_TO_JUMP_APEX;
 /// gravity when rising from a jump but not holding jump
-const JUMP_RELEASE_GRAVITY: f32 = JUMP_GRAVITY * 1.5;
+const JUMP_RELEASE_GRAVITY: f32 = JUMP_GRAVITY * 3.0;
 /// normal falling gravity
-const FALLING_GRAVITY: f32 = JUMP_GRAVITY * 1.5;
+const FALLING_GRAVITY: f32 = JUMP_GRAVITY * 2.5;
 const FALL_TERMINAL_VEL: f32 = 300.0;
-const PLUMMET_TERMINAL_VEL: f32 = 300.0;
+const PLUMMET_TERMINAL_VEL: f32 = 400.0;
+const FALLING_GRAVITY_VERT_VEL_THRESHOLD: f32 = 16.0;
 
 const COYOTE_TIME: f32 = 0.09;
 const JUMP_BUFFER_LEN: f32 = 0.1;
@@ -100,15 +101,16 @@ impl PlayerController {
             self.coyote_countdown = COYOTE_TIME;
         }
 
-        let gravity = if player_vel.vel.y < 0.01 {
-            if self.is_jumping && controls.jump {
-                JUMP_GRAVITY
+        let gravity =
+            if player_vel.vel.y < -FALLING_GRAVITY_VERT_VEL_THRESHOLD * dt {
+                if self.is_jumping && controls.jump {
+                    JUMP_GRAVITY
+                } else {
+                    JUMP_RELEASE_GRAVITY
+                }
             } else {
-                JUMP_RELEASE_GRAVITY
-            }
-        } else {
-            FALLING_GRAVITY
-        };
+                FALLING_GRAVITY
+            };
 
         let jump_rising_edge = controls.jump && !self.was_pressing_jump;
         if jump_rising_edge {
@@ -122,8 +124,13 @@ impl PlayerController {
             self.is_jumping = true;
         }
 
+        let terminal_vel = if controls.movement.y > 0.0 {
+            PLUMMET_TERMINAL_VEL
+        } else {
+            FALL_TERMINAL_VEL
+        };
         player_vel.vel.y =
-            move_towards(player_vel.vel.y, FALL_TERMINAL_VEL, gravity * dt);
+            move_towards(player_vel.vel.y, terminal_vel, gravity * dt);
         if player_vel.vel.y > 0.0 && on_ground {
             player_vel.vel.y = 0.0;
         }
