@@ -4,7 +4,13 @@ player {
     bonker
     collider
     zlevel 100
-    colored-hitbox 0xff00cc_ff
+    colored-hitbox 0xffcc50_ff
+}
+
+rod {
+    physic-body width=4 height=4
+    zlevel 200
+    colored-hitbox 0x00ff00_ff
 }
 
 wall {

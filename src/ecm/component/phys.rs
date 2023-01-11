@@ -28,6 +28,12 @@ impl Positioned {
         Self { pos }
     }
 
+    pub fn from_vec(vec: Vec2) -> Self {
+        Self {
+            pos: CoordVec::new(vec.x.round() as _, vec.y.round() as _),
+        }
+    }
+
     /// Create a hitbox at the center point
     pub fn make_hitbox(&self, dims: HasDims) -> Hitbox {
         Hitbox::new(self.pos.x, self.pos.y, dims.w, dims.h)
@@ -187,6 +193,10 @@ impl KinematicState {
             Some(countdown) => *countdown > 0,
             None => false,
         }
+    }
+
+    pub fn touching_any(&self) -> bool {
+        self.touching.values().any(|v| *v > 0)
     }
 }
 

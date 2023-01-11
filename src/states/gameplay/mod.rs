@@ -60,16 +60,16 @@ XX
     
    XX           XXX
    XX           XXX
-           XX              XXXX
-           XX              
-       XXXXXX  
-       XXXXXX        
-                     XXX
-XXX                  XXX
+                           XXXX
+                           
+       XXXX    
+       XXXX          
+                                  XXX
+XXX                               XXX
  
 
-XXXXXXXXXXXXX   XXX        XXXXX
-XXXXXXXXXXXXX   XXX        XXXXX
+XXXXXXXXXXXXX              XXXXX
+XXXXXXXXXXXXX              XXXXX
         
         
                       XXX
@@ -113,7 +113,12 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
             let mut controller =
                 self.world.write_resource::<PlayerController>().unwrap();
             let controls = ControlState::calculate();
-            controller.update_from_controls(controls, &self.world, self.dt);
+            controller.update_from_controls(
+                controls,
+                &self.world,
+                &self.fab_ctx,
+                self.dt,
+            );
         }
 
         self.world.dispatch_to_all(MsgTick);

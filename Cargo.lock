@@ -238,9 +238,9 @@ checksum = "0c87e182de0887fd5361989c677c4e8f5000cd9491d6d563161a8f3a5519fc7f"
 
 [[package]]
 name = "dialga"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3afff504443d8d31fc0e3598084990b780f482770fc4e3c277c7dcddf86bb07"
+checksum = "90c47dcc4c49ab3310250a47ba7ffbc4382deb130dad674db53e93ceadc098b4"
 dependencies = [
  "ahash 0.8.2",
  "eyre",
@@ -659,9 +659,9 @@ checksum = "6f61fba1741ea2b3d6a1e3178721804bb716a68a6aeba1149b5d52e3d464ea66"
 
 [[package]]
 name = "palkia"
-version = "0.9.2"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d6f2722c47a72ba9ead8a09d859648b8e7c4c934359e452f83c051cf47f92cc"
+checksum = "83aaf98a384131f48750aaaeacc4475eb2cd3915b299cad5298df0d465adab87"
 dependencies = [
  "ahash 0.7.6",
  "crossbeam",
