@@ -1,6 +1,7 @@
 player {
     // Maddy's hitbox is 8x11, but displays as 8x16
     physic-body width=8 height=12
+    bonker
     collider
     zlevel 100
     colored-hitbox 0xff00cc_ff

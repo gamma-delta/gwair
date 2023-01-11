@@ -37,12 +37,10 @@ const JUMP_BUFFER_LEN: f32 = 0.1;
 pub struct PlayerController {
     entity: Entity,
 
-    is_jumping: bool,
-    coyote_countdown: f32,
-    was_on_ground: bool,
-
     was_pressing_jump: bool,
     jump_buffer_countdown: f32,
+
+    state: PlayerState,
 }
 
 impl PlayerController {
@@ -53,11 +51,10 @@ impl PlayerController {
     pub fn new(entity: Entity) -> Self {
         Self {
             entity,
-            is_jumping: false,
-            coyote_countdown: 0.0,
-            was_on_ground: false,
             was_pressing_jump: false,
             jump_buffer_countdown: 0.0,
+
+            state: PlayerState::OnGround,
         }
     }
 
@@ -71,7 +68,7 @@ impl PlayerController {
             world.query::<&mut Velocitized>(self.entity).unwrap();
         let ks = world.query::<&KinematicState>(self.entity).unwrap();
 
-        let on_ground = ks.touching.contains(Direction8::South);
+        let on_ground = ks.touching(Direction8::South);
 
         // Running
         let walk_acc = WALK_ACCEL;
@@ -92,37 +89,66 @@ impl PlayerController {
         player_vel.vel.x =
             move_towards(player_vel.vel.x, target_vel_x, acc * dt);
 
-        // Jumping
-        if on_ground {
-            self.is_jumping = false;
+        let state2 = match self.state {
+            PlayerState::OnGround => {
+                if !on_ground {
+                    Some(PlayerState::FallingFromLedge {
+                        coyote_countdown: COYOTE_TIME,
+                    })
+                } else if self.jump_buffer_countdown > 0.0 {
+                    Some(PlayerState::JumpingUp)
+                } else {
+                    None
+                }
+            }
+            PlayerState::FallingFromLedge { coyote_countdown } => {
+                if on_ground {
+                    Some(PlayerState::OnGround)
+                } else if coyote_countdown > 0.0
+                    && self.jump_buffer_countdown > 0.0
+                {
+                    Some(PlayerState::JumpingUp)
+                } else {
+                    Some(PlayerState::FallingFromLedge {
+                        coyote_countdown: (coyote_countdown - dt).max(0.0),
+                    })
+                }
+            }
+            PlayerState::JumpingUp => {
+                if controls.jump && player_vel.vel.y < 0.0 {
+                    None
+                } else {
+                    Some(PlayerState::Falling)
+                }
+            }
+            PlayerState::Falling => {
+                if on_ground {
+                    Some(PlayerState::OnGround)
+                } else {
+                    None
+                }
+            }
+        };
+        if let Some(state2) = state2 {
+            if matches!(&state2, PlayerState::JumpingUp) {
+                player_vel.vel.y = -JUMP_IMPULSE_VEL;
+            }
+            println!("changing to {:?}", &state2);
+            self.state = state2;
         }
 
-        if !on_ground && self.was_on_ground {
-            self.coyote_countdown = COYOTE_TIME;
-        }
-
-        let gravity =
-            if player_vel.vel.y < -FALLING_GRAVITY_VERT_VEL_THRESHOLD * dt {
-                if self.is_jumping && controls.jump {
+        let gravity = match self.state {
+            PlayerState::OnGround => FALLING_GRAVITY,
+            PlayerState::FallingFromLedge { .. } => FALLING_GRAVITY,
+            PlayerState::JumpingUp => {
+                if controls.jump {
                     JUMP_GRAVITY
                 } else {
                     JUMP_RELEASE_GRAVITY
                 }
-            } else {
-                FALLING_GRAVITY
-            };
-
-        let jump_rising_edge = controls.jump && !self.was_pressing_jump;
-        if jump_rising_edge {
-            self.jump_buffer_countdown = JUMP_BUFFER_LEN;
-        }
-
-        let can_jump =
-            !self.is_jumping && (on_ground || self.coyote_countdown > 0.0);
-        if can_jump && self.jump_buffer_countdown > 0.0 {
-            player_vel.vel.y = -JUMP_IMPULSE_VEL;
-            self.is_jumping = true;
-        }
+            }
+            PlayerState::Falling => FALLING_GRAVITY,
+        };
 
         let terminal_vel = if controls.movement.y > 0.0 {
             PLUMMET_TERMINAL_VEL
@@ -131,16 +157,13 @@ impl PlayerController {
         };
         player_vel.vel.y =
             move_towards(player_vel.vel.y, terminal_vel, gravity * dt);
-        if player_vel.vel.y > 0.0 && on_ground {
-            player_vel.vel.y = 0.0;
-        }
 
-        if !on_ground {
-            self.coyote_countdown = (self.coyote_countdown - dt).max(0.0);
+        let jump_rising_edge = controls.jump && !self.was_pressing_jump;
+        if jump_rising_edge {
+            self.jump_buffer_countdown = JUMP_BUFFER_LEN;
         }
         self.jump_buffer_countdown = (self.jump_buffer_countdown - dt).max(0.0);
 
-        self.was_on_ground = on_ground;
         self.was_pressing_jump = controls.jump;
 
         if controls.reset {
@@ -161,4 +184,12 @@ fn move_towards(src: f32, target: f32, max_delta: f32) -> f32 {
     let sign = target_delta.signum();
     let delta = max_delta.min(target_delta.abs());
     src + delta * sign
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum PlayerState {
+    OnGround,
+    FallingFromLedge { coyote_countdown: f32 },
+    JumpingUp,
+    Falling,
 }

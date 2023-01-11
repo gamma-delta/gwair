@@ -107,6 +107,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     }
 
     pub fn on_update(&mut self) {
+        self.world.dispatch_to_all(MsgPhysicsTick::new(self.dt));
         update::do_collision(self);
         {
             let mut controller =
@@ -114,7 +115,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
             let controls = ControlState::calculate();
             controller.update_from_controls(controls, &self.world, self.dt);
         }
-        self.world.dispatch_to_all(MsgPhysicsTick::new(self.dt));
 
         self.world.dispatch_to_all(MsgTick);
         self.world.finalize();

@@ -20,6 +20,7 @@ pub fn setup_world(world: &mut World) {
     world.register_component::<Velocitized>();
     world.register_component::<FrictionHaver>();
     world.register_component::<KinematicState>();
+    world.register_component::<Bonker>();
 
     world.register_component::<AgeTracker>();
     world.register_component::<LimitedTimeOffer>();
@@ -36,6 +37,7 @@ pub fn setup_world(world: &mut World) {
 pub fn setup_fabber(fab: &mut EntityFab) {
     // dims, mover, vel
     fab.register("physic-body", PhysicFactory);
+    fab.register_serde::<Bonker>("bonker"); // but here's the bonker
 
     fab.register("friction", FrictionFactory);
     fab.register_serde::<Collider>("collider");

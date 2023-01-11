@@ -1,4 +1,5 @@
 use aglet::{CoordVec, Direction4Set, Direction8, Direction8Set};
+use ahash::AHashMap;
 use dialga::factory::ComponentFactory;
 use kdl::KdlNode;
 use macroquad::prelude::Vec2;
@@ -174,7 +175,19 @@ impl Component for Velocitized {
 /// Tracks the directions this is touching something in.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct KinematicState {
-    pub touching: Direction8Set,
+    /// A "countdown" for each direction.
+    touching: AHashMap<Direction8, u8>,
+}
+
+impl KinematicState {
+    const TOUCH_COUNTDOWN: u8 = 2;
+
+    pub fn touching(&self, direction: Direction8) -> bool {
+        match self.touching.get(&direction) {
+            Some(countdown) => *countdown > 0,
+            None => false,
+        }
+    }
 }
 
 impl Component for KinematicState {
@@ -184,13 +197,62 @@ impl Component for KinematicState {
     {
         builder
             .handle_write(|this, msg: MsgSendHit, _, _| {
-                this.touching.insert(msg.normal());
+                this.touching
+                    .insert(msg.normal(), KinematicState::TOUCH_COUNTDOWN);
                 msg
             })
             .handle_write(|this, msg: MsgPhysicsTick, _, _| {
-                this.touching = Direction8Set::empty();
+                for v in this.touching.values_mut() {
+                    *v = v.saturating_sub(1);
+                }
                 msg
             })
+    }
+}
+
+/// If this bonks against something remove all velocity in that direction
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Bonker;
+
+impl Component for Bonker {
+    fn register_handlers(builder: HandlerBuilder<Self>) -> HandlerBuilder<Self>
+    where
+        Self: Sized,
+    {
+        builder.handle_read(|_, msg: MsgSendHit, me, access| {
+            let ks = access.query::<&KinematicState>(me).unwrap();
+            let mut vel = access.query::<&mut Velocitized>(me).unwrap();
+
+            for horz_dir in [
+                Direction8::NorthWest,
+                Direction8::West,
+                Direction8::SouthWest,
+                Direction8::NorthEast,
+                Direction8::East,
+                Direction8::SouthEast,
+            ] {
+                if ks.touching(horz_dir) {
+                    vel.vel.x = 0.0;
+                    break;
+                }
+            }
+
+            for vert_dir in [
+                Direction8::NorthWest,
+                Direction8::North,
+                Direction8::NorthEast,
+                Direction8::SouthWest,
+                Direction8::South,
+                Direction8::SouthEast,
+            ] {
+                if ks.touching(vert_dir) {
+                    vel.vel.y = 0.0;
+                    break;
+                }
+            }
+
+            msg
+        })
     }
 }
 
