@@ -7,15 +7,13 @@ use macroquad::prelude::Color;
 use palkia::prelude::*;
 
 use crate::{
-    controls::ControlState,
     ecm::{
         self,
         component::{
-            Collider, ColoredHitbox, HasDims, Mover, Positioned, Velocitized,
-            ZLevel,
+            Collider, ColoredHitbox, HasDims, Mover, Positioned, ZLevel,
         },
         message::{MsgDraw, MsgPhysicsTick, MsgTick},
-        resource::{Camera, HitboxTracker, PlayerController},
+        resource::{Camera, FabCtxHolder, HitboxTracker},
     },
     fabctx::FabCtx,
     geom::{EntityAABB, Hitbox},
@@ -31,7 +29,6 @@ pub struct StateGameplay {
 
     // TODO: make dt really work
     dt: f32,
-    fab_ctx: FabCtx,
 }
 
 impl StateGameplay {
@@ -44,82 +41,26 @@ impl StateGameplay {
 
         let ctx = FabCtx {};
 
-        let player = fabber
+        fabber
             .instantiate(
                 "player",
                 world.spawn().with(Positioned::new(CoordVec::new(0, 0))),
                 &ctx,
             )
             .unwrap();
-        world.insert_resource(PlayerController::new(player));
 
-        const TEMP_LEVEL: &str = r"
-XX
-XX
-    
-    
-   XX           XXX
-   XX           XXX
-                           XXXX
-                           
-       XXXX    
-       XXXX          
-                                  XXX
-XXX                               XXX
- 
-
-XXXXXXXXXXXXX              XXXXX
-XXXXXXXXXXXXX              XXXXX
-        
-        
-                      XXX
-        
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        ";
-
-        for (y, line) in TEMP_LEVEL.lines().enumerate() {
-            for (x, ch) in line.chars().enumerate() {
-                if ch != ' ' {
-                    let wx = (x as i32) * 8 - 140;
-                    let wy = (y as i32) * 8 - 100;
-                    world
-                        .spawn()
-                        .with(Positioned::new(CoordVec::new(wx, wy)))
-                        .with(Mover::new())
-                        .with(HasDims::new(8, 8))
-                        .with(ColoredHitbox::new(Color::new(
-                            (x as f32 + y as f32).sin() * 0.5 + 0.5,
-                            0.0,
-                            1.0,
-                            1.0,
-                        )))
-                        .with(Collider)
-                        .build();
-                }
-            }
-        }
+        world.insert_resource(FabCtxHolder(ctx));
+        setup_temp_level(&mut world);
 
         StateGameplay {
             world,
             dt: 1.0 / 60.0,
-            fab_ctx: ctx,
         }
     }
 
     pub fn on_update(&mut self) {
         self.world.dispatch_to_all(MsgPhysicsTick::new(self.dt));
         update::do_collision(self);
-        {
-            let mut controller =
-                self.world.write_resource::<PlayerController>().unwrap();
-            let controls = ControlState::calculate();
-            controller.update_from_controls(
-                controls,
-                &self.world,
-                &self.fab_ctx,
-                self.dt,
-            );
-        }
 
         self.world.dispatch_to_all(MsgTick);
         self.world.finalize();
@@ -168,6 +109,53 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
         for (e, _, _) in es.iter() {
             self.world.dispatch(*e, MsgDraw::default());
+        }
+    }
+}
+
+fn setup_temp_level(world: &mut World) {
+    const TEMP_LEVEL: &str = r"
+XX
+XX
+    
+    
+   XX           XXX
+   XX           XXX
+                           XXXX
+                           
+       XXXX    
+       XXXX          
+                                  XXX
+XXX                               XXX
+ 
+
+XXXXXXXXXXXXX              XXXXX
+XXXXXXXXXXXXX              XXXXX
+        
+        
+                      XXX
+        
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        ";
+    for (y, line) in TEMP_LEVEL.lines().enumerate() {
+        for (x, ch) in line.chars().enumerate() {
+            if ch != ' ' {
+                let wx = (x as i32) * 8 - 140;
+                let wy = (y as i32) * 8 - 100;
+                world
+                    .spawn()
+                    .with(Positioned::new(CoordVec::new(wx, wy)))
+                    .with(Mover::new())
+                    .with(HasDims::new(8, 8))
+                    .with(ColoredHitbox::new(Color::new(
+                        (x as f32 + y as f32).sin() * 0.5 + 0.5,
+                        0.0,
+                        1.0,
+                        1.0,
+                    )))
+                    .with(Collider)
+                    .build();
+            }
         }
     }
 }

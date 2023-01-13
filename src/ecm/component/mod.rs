@@ -1,8 +1,10 @@
 mod gfx;
 mod phys;
+mod player;
 
 pub use gfx::*;
 pub use phys::*;
+pub use player::*;
 
 use palkia::prelude::*;
 use serde::{Deserialize, Serialize};

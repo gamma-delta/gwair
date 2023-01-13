@@ -9,18 +9,19 @@ use component::*;
 
 use crate::EntityFab;
 
-use self::resource::{BrainTracker, Camera, HitboxTracker};
+use self::resource::{Camera, HitboxTracker};
 
 /// Register components and insert resources
 pub fn setup_world(world: &mut World) {
     world.register_component::<Positioned>();
     world.register_component::<HasDims>();
-    world.register_component::<Collider>();
     world.register_component::<Mover>();
     world.register_component::<Velocitized>();
-    world.register_component::<FrictionHaver>();
     world.register_component::<KinematicState>();
+
+    world.register_component::<FrictionHaver>();
     world.register_component::<Bonker>();
+    world.register_component::<Collider>();
 
     world.register_component::<AgeTracker>();
     world.register_component::<LimitedTimeOffer>();
@@ -29,16 +30,19 @@ pub fn setup_world(world: &mut World) {
     world.register_component::<ColoredHitbox>();
     world.register_component::<DrawTexture>();
 
+    world.register_component::<PlayerController>();
+
+    //
+
     world.insert_resource_default::<Camera>();
     world.insert_resource_default::<HitboxTracker>();
-    world.insert_resource_default::<BrainTracker>();
 }
 
 pub fn setup_fabber(fab: &mut EntityFab) {
     // dims, mover, vel
     fab.register("physic-body", PhysicFactory);
-    fab.register_serde::<Bonker>("bonker"); // but here's the bonker
 
+    fab.register_serde::<Bonker>("bonker"); // but here's the bonker
     fab.register("friction", FrictionFactory);
     fab.register_serde::<Collider>("collider");
 
@@ -48,4 +52,6 @@ pub fn setup_fabber(fab: &mut EntityFab) {
     fab.register_serde::<ZLevel>("zlevel");
     fab.register_serde::<ColoredHitbox>("colored-hitbox");
     fab.register_serde::<DrawTexture>("texture");
+
+    fab.register("player", PlayerFactory);
 }

@@ -1,15 +1,21 @@
 //! https://gmtk.itch.io/platformer-toolkit/devlog/395523/behind-the-code
 
-use std::f32::consts::{PI, TAU};
+use std::f32::consts::TAU;
 
 use aglet::{CoordVec, Direction8};
+use dialga::factory::ComponentFactory;
 use glam::{vec2, Vec2};
+use kdl::KdlNode;
 use palkia::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     controls::ControlState,
-    ecm::component::{KinematicState, Positioned, Velocitized},
+    ecm::{
+        component::{KinematicState, Positioned, Velocitized},
+        message::MsgPhysicsTick,
+        resource::FabCtxHolder,
+    },
     fabctx::FabCtx,
     resources::Resources,
 };
@@ -56,24 +62,30 @@ const SWING_VEL_TO_VEL_RATE: f32 = 2.1;
 const ANGLE_TO_CHEAT_VEL_AT: f32 = TAU * 0.25;
 const ANGLE_VEL_CHEAT_FACTOR: f32 = 2.0;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerController {
-    entity: Entity,
-
     was_pressing_jump: bool,
     jump_buffer_countdown: f32,
 
     state: PlayerState,
 }
 
-impl PlayerController {
-    pub fn entity(&self) -> Entity {
-        self.entity
+impl Component for PlayerController {
+    fn register_handlers(builder: HandlerBuilder<Self>) -> HandlerBuilder<Self>
+    where
+        Self: Sized,
+    {
+        builder.handle_write(|this, msg: MsgPhysicsTick, me, access| {
+            let controls = ControlState::calculate();
+            this.update_from_controls(me, msg.dt(), controls, access);
+            msg
+        })
     }
+}
 
-    pub fn new(entity: Entity) -> Self {
+impl PlayerController {
+    pub fn new() -> Self {
         Self {
-            entity,
             was_pressing_jump: false,
             jump_buffer_countdown: 0.0,
 
@@ -83,10 +95,10 @@ impl PlayerController {
 
     pub fn update_from_controls(
         &mut self,
-        controls: ControlState,
-        world: &World,
-        fab_ctx: &FabCtx,
+        entity: Entity,
         dt: f32,
+        controls: ControlState,
+        access: &ListenerWorldAccess,
     ) {
         if let PlayerState::Normal(n) = &mut self.state {
             if controls.swing {
@@ -98,9 +110,9 @@ impl PlayerController {
                 };
                 if !n.was_swinging && can_swing {
                     let player_vel =
-                        world.query::<&Velocitized>(self.entity).unwrap();
+                        access.query::<&Velocitized>(entity).unwrap();
                     let player_pos =
-                        world.query::<&Positioned>(self.entity).unwrap();
+                        access.query::<&Positioned>(entity).unwrap();
 
                     let anchor_delta =
                         if controls.movement.length_squared() < 0.0001 {
@@ -131,13 +143,15 @@ impl PlayerController {
                     // so we can see it
                     let rod = {
                         let res = Resources::get();
+                        let ctx =
+                            access.read_resource::<FabCtxHolder>().unwrap();
                         res.fabber()
                             .instantiate(
                                 "rod",
-                                world
+                                access
                                     .lazy_spawn()
                                     .with(Positioned::from_vec(anchor_pos)),
-                                fab_ctx,
+                                &ctx.0,
                             )
                             .unwrap()
                     };
@@ -156,10 +170,10 @@ impl PlayerController {
 
         match self.state {
             PlayerState::Normal(..) => {
-                self.normal_movement(controls, world, dt);
+                self.normal_movement(entity, dt, controls, access);
             }
             PlayerState::Swinging(ref mut swinging) => {
-                let ks = world.query::<&KinematicState>(self.entity).unwrap();
+                let ks = access.query::<&KinematicState>(entity).unwrap();
 
                 let gravity = if swinging.angle.abs() > SWING_TOO_FAR_ANGLE {
                     SWING_TOO_FAR_GRAVITY
@@ -178,14 +192,14 @@ impl PlayerController {
                 println!("{} -> {}", swinging.vel, swinging.angle);
 
                 let mut player_vel =
-                    world.query::<&mut Velocitized>(self.entity).unwrap();
+                    access.query::<&mut Velocitized>(entity).unwrap();
                 let ortho_vel = -Vec2::from_angle(swinging.angle)
                     * swinging.vel
                     * ROD_ANCHOR_DIST;
                 player_vel.vel = ortho_vel;
 
                 if !controls.swing || ks.touching_any() {
-                    world.lazy_despawn(swinging.swingee);
+                    access.lazy_despawn(swinging.swingee);
 
                     let cheated_angle =
                         if swinging.angle.abs() > ANGLE_TO_CHEAT_VEL_AT {
@@ -220,25 +234,25 @@ impl PlayerController {
         self.was_pressing_jump = controls.jump;
 
         if controls.reset {
-            let mut pos = world.query::<&mut Positioned>(self.entity).unwrap();
+            let mut pos = access.query::<&mut Positioned>(entity).unwrap();
             pos.pos = CoordVec::new(0, 0);
         }
     }
 
     fn normal_movement(
         &mut self,
-        controls: ControlState,
-        world: &World,
+        entity: Entity,
         dt: f32,
+        controls: ControlState,
+        access: &ListenerWorldAccess,
     ) {
         let normal = match self.state {
             PlayerState::Normal(ref mut it) => it,
             _ => unreachable!(),
         };
 
-        let mut player_vel =
-            world.query::<&mut Velocitized>(self.entity).unwrap();
-        let ks = world.query::<&KinematicState>(self.entity).unwrap();
+        let mut player_vel = access.query::<&mut Velocitized>(entity).unwrap();
+        let ks = access.query::<&KinematicState>(entity).unwrap();
         let on_ground = ks.touching(Direction8::South);
 
         let walk_acc = WALK_ACCEL;
@@ -383,4 +397,20 @@ struct Swinging {
     vel: f32,
     anchor_pos: Vec2,
     swingee: Entity,
+}
+
+// ===
+
+pub struct PlayerFactory;
+
+impl ComponentFactory<FabCtx> for PlayerFactory {
+    fn assemble<'a, 'w>(
+        &self,
+        mut builder: EntityBuilder<'a, 'w>,
+        _node: &KdlNode,
+        _ctx: &FabCtx,
+    ) -> eyre::Result<EntityBuilder<'a, 'w>> {
+        builder.insert(PlayerController::new());
+        Ok(builder)
+    }
 }

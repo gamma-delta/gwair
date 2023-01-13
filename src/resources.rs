@@ -21,7 +21,7 @@ pub struct Resources {
 pub const RESOURCES_ROOT: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/resources");
 #[cfg(not(debug_assertions))]
-pub const ASSETS_ROOT: &str = "./resources";
+pub const RESOURCES_ROOT: &str = "./resources";
 
 impl Resources {
     pub fn load() -> eyre::Result<Resources> {
@@ -61,8 +61,9 @@ impl Resources {
         ecm::setup_fabber(&mut fabber);
         for path in all_subpaths(&bp_root, "kdl")? {
             let abs_path = bp_root.join(&path);
+            println!("{:?}", &abs_path);
             let file = fs::read_to_string(&abs_path)?;
-            fabber.load_str(&file, &abs_path.display().to_string())?;
+            fabber.load_str(&file, &path.display().to_string())?;
         }
 
         Ok(Resources {
@@ -127,7 +128,8 @@ fn all_subpaths(root: impl AsRef<Path>, ext: &str) -> io::Result<Vec<PathBuf>> {
             format!("{} is not a directory", root.as_ref().display()),
         ));
     }
-    let mut todo = vec![root.as_ref().to_path_buf()];
+    let root = root.as_ref().canonicalize().unwrap();
+    let mut todo = vec![root.clone()];
     let mut out = Vec::new();
 
     while let Some(path) = todo.pop() {
@@ -142,9 +144,7 @@ fn all_subpaths(root: impl AsRef<Path>, ext: &str) -> io::Result<Vec<PathBuf>> {
                 Some(it) => it == ext,
             };
             if ext_matches {
-                out.push(
-                    path.strip_prefix(root.as_ref()).unwrap().to_path_buf(),
-                );
+                out.push(path.strip_prefix(&root).unwrap().to_path_buf());
             }
         }
     }

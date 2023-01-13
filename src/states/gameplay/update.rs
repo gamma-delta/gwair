@@ -1,6 +1,6 @@
-use super::{StateGameplay, PLAYER_ACC, PLAYER_WALK_SPEED};
+use super::StateGameplay;
 
-use aglet::{CoordVec, Direction4, Direction8};
+use aglet::{CoordVec, Direction8};
 use ahash::AHashMap;
 use broccoli::{aabb::pin::AabbPin, Tree};
 use itertools::Itertools;
@@ -10,9 +10,9 @@ use palkia::prelude::*;
 use crate::{
     ecm::{
         actions,
-        component::{HasDims, Mover, Positioned, Velocitized},
+        component::{HasDims, Mover, Positioned},
         message::{MsgRecvHit, MsgSendHit},
-        resource::{Camera, HitboxTracker, PlayerController, TreeHolder},
+        resource::{HitboxTracker, TreeHolder},
     },
     geom::{EntityAABB, Hitbox},
 };
