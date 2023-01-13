@@ -21,9 +21,6 @@ use crate::{
     resources::Resources,
 };
 
-const PLAYER_WALK_SPEED: f32 = 128.0;
-const PLAYER_ACC: f32 = 32.0;
-
 pub struct StateGameplay {
     world: World,
 

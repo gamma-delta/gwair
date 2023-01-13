@@ -1,4 +1,4 @@
-use aglet::{CoordVec, Direction4Set, Direction8, Direction8Set};
+use aglet::{CoordVec, Direction8};
 use ahash::AHashMap;
 use dialga::factory::ComponentFactory;
 use kdl::KdlNode;
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ecm::{
-        message::{MsgDraw, MsgPhysicsTick, MsgRecvHit, MsgSendHit, MsgTick},
+        message::{MsgDraw, MsgPhysicsTick, MsgSendHit},
         resource::HitboxTracker,
     },
     fabctx::FabCtx,
@@ -86,8 +86,8 @@ impl HasDims {
     fn on_draw(
         &self,
         mut msg: MsgDraw,
-        me: Entity,
-        access: &ListenerWorldAccess,
+        _me: Entity,
+        _access: &ListenerWorldAccess,
     ) -> MsgDraw {
         msg.dims = Some((self.w, self.h));
         msg

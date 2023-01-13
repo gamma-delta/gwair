@@ -1,5 +1,5 @@
 use aglet::CoordVec;
-use bitflags::bitflags;
+
 use broccoli::{
     aabb::{Aabb, ManySwap},
     axgeom::{Rect, Vec2 as BrocVec2},

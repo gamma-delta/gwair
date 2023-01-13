@@ -1,5 +1,5 @@
-use aglet::{CoordVec, Direction4, Direction4Set, Direction8};
-use macroquad::prelude::Vec2;
+use aglet::{CoordVec, Direction8};
+
 use palkia::prelude::*;
 
 #[derive(Debug, Clone, Copy, Default)]

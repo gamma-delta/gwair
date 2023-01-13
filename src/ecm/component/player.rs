@@ -191,23 +191,27 @@ impl PlayerController {
                 swinging.angle += swinging.vel * dt;
                 println!("{} -> {}", swinging.vel, swinging.angle);
 
+                let player_pos = access.query::<&Positioned>(entity).unwrap();
                 let mut player_vel =
                     access.query::<&mut Velocitized>(entity).unwrap();
-                let ortho_vel = -Vec2::from_angle(swinging.angle)
-                    * swinging.vel
-                    * ROD_ANCHOR_DIST;
-                player_vel.vel = ortho_vel;
+                // Trying to just update the player loc ideally is prone to drift
+                let ideal_player_loc = swinging.anchor_pos
+                    - Vec2::from_angle(swinging.angle - TAU / 4.0)
+                        * ROD_ANCHOR_DIST;
+                let vel = ideal_player_loc
+                    - vec2(player_pos.pos.x as _, player_pos.pos.y as _);
+                player_vel.vel = vel / dt;
 
                 if !controls.swing || ks.touching_any() {
                     access.lazy_despawn(swinging.swingee);
 
                     let cheated_angle =
                         if swinging.angle.abs() > ANGLE_TO_CHEAT_VEL_AT {
+                            let reduced_extra = (swinging.angle.abs()
+                                - ANGLE_TO_CHEAT_VEL_AT)
+                                / ANGLE_VEL_CHEAT_FACTOR;
                             swinging.angle.signum()
-                                * (ANGLE_TO_CHEAT_VEL_AT
-                                    + (swinging.angle.abs()
-                                        - ANGLE_TO_CHEAT_VEL_AT)
-                                        * ANGLE_VEL_CHEAT_FACTOR)
+                                * (ANGLE_TO_CHEAT_VEL_AT + reduced_extra)
                         } else {
                             swinging.angle
                         };
