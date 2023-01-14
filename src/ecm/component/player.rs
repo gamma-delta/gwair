@@ -14,7 +14,7 @@ use crate::{
     ecm::{
         component::{KinematicState, Positioned, Velocitized},
         message::MsgPhysicsTick,
-        resource::FabCtxHolder,
+        resource::{Camera, FabCtxHolder},
     },
     fabctx::FabCtx,
     resources::Resources,
@@ -76,7 +76,11 @@ impl Component for PlayerController {
         Self: Sized,
     {
         builder.handle_write(|this, msg: MsgPhysicsTick, me, access| {
-            let controls = ControlState::calculate();
+            let controls = {
+                let player_pos = access.query::<&Positioned>(me).unwrap();
+                let cam_pos = access.read_resource::<Camera>().unwrap();
+                ControlState::calculate(player_pos.pos, cam_pos.center)
+            };
             this.update_from_controls(me, msg.dt(), controls, access);
             msg
         })
@@ -114,12 +118,7 @@ impl PlayerController {
                     let player_pos =
                         access.query::<&Positioned>(entity).unwrap();
 
-                    let anchor_delta =
-                        if controls.movement.length_squared() < 0.0001 {
-                            Vec2::new(0.0, -1.0)
-                        } else {
-                            controls.movement.normalize()
-                        };
+                    let anchor_delta = controls.pointing;
                     // how much in common does the player vel have with
                     // orthagonal to the anchor delta?
                     dbg!(player_vel.vel, anchor_delta);
