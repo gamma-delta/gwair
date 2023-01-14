@@ -1,10 +1,12 @@
 mod gfx;
 mod phys;
 mod player;
+mod swinging;
 
 pub use gfx::*;
 pub use phys::*;
 pub use player::*;
+pub use swinging::*;
 
 use palkia::prelude::*;
 use serde::{Deserialize, Serialize};

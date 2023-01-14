@@ -28,7 +28,7 @@ const WALK_FRICTION: f32 = WALK_TERMINAL_VEL * 60.0 / 2.0;
 const WALK_TURN_ACCEL: f32 = WALK_TERMINAL_VEL * 60.0;
 
 const JUMP_HEIGHT: f32 = 40.0;
-const TIME_TO_JUMP_APEX: f32 = 0.4;
+const TIME_TO_JUMP_APEX: f32 = 0.45;
 /// Derived from kinematics
 const JUMP_IMPULSE_VEL: f32 = 2.0 * JUMP_HEIGHT / TIME_TO_JUMP_APEX;
 /// gravity when rising from a jump
@@ -53,13 +53,13 @@ const SWING_FRICTION: f32 = 0.1;
 const SWING_TOO_FAR_ANGLE: f32 = TAU / 4.0;
 const SWING_TOO_FAR_GRAVITY: f32 = 10.0;
 
-const PLAYER_SWING_ACC: f32 = 2.0;
+const PLAYER_SWING_ACC: f32 = 4.0;
 
 const SWING_TERMINAL_VEL: f32 = 10.0;
-const SWING_VEL_TO_VEL_RATE: f32 = 2.1;
+const SWING_VEL_TO_VEL_RATE: f32 = 2.2;
 /// If the angle is over horizontal, cheat in favor of the player
 /// and make it a little smaller.
-const ANGLE_TO_CHEAT_VEL_AT: f32 = TAU * 0.25;
+const ANGLE_TO_CHEAT_VEL_AT: f32 = TAU * 0.225;
 const ANGLE_VEL_CHEAT_FACTOR: f32 = 2.0;
 
 #[derive(Debug, Serialize, Deserialize)]

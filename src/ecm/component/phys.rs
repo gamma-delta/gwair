@@ -186,7 +186,7 @@ pub struct KinematicState {
 }
 
 impl KinematicState {
-    const TOUCH_COUNTDOWN: u8 = 2;
+    const TOUCH_COUNTDOWN: u8 = 3;
 
     pub fn touching(&self, direction: Direction8) -> bool {
         match self.touching.get(&direction) {
