@@ -1,6 +1,6 @@
 //! https://gmtk.itch.io/platformer-toolkit/devlog/395523/behind-the-code
 
-use std::f32::consts::TAU;
+use std::f32::consts::{PI, TAU};
 
 use aglet::{CoordVec, Direction8};
 use dialga::factory::ComponentFactory;
@@ -174,6 +174,9 @@ impl PlayerController {
             }
             PlayerState::Swinging(ref mut swinging) => {
                 let ks = access.query::<&KinematicState>(entity).unwrap();
+
+                // Keep the angle between -pi and pi
+                swinging.angle = (swinging.angle + PI).rem_euclid(TAU) - PI;
 
                 let gravity = if swinging.angle.abs() > SWING_TOO_FAR_ANGLE {
                     SWING_TOO_FAR_GRAVITY
