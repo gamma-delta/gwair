@@ -173,63 +173,7 @@ impl PlayerController {
                 self.normal_movement(entity, dt, controls, access);
             }
             PlayerState::Swinging(ref mut swinging) => {
-                let ks = access.query::<&KinematicState>(entity).unwrap();
-
-                // Keep the angle between -pi and pi
-                swinging.angle = (swinging.angle + PI).rem_euclid(TAU) - PI;
-
-                let gravity = if swinging.angle.abs() > SWING_TOO_FAR_ANGLE {
-                    SWING_TOO_FAR_GRAVITY
-                } else {
-                    SWING_GRAVITY
-                };
-                let control = controls.movement.x.signum();
-                let acc = -gravity * swinging.angle.sin()
-                    + -control * PLAYER_SWING_ACC;
-
-                let friction = (swinging.vel * swinging.vel)
-                    * SWING_FRICTION
-                    * swinging.vel.signum();
-                swinging.vel += (acc * dt - friction * dt)
-                    .clamp(-SWING_TERMINAL_VEL, SWING_TERMINAL_VEL);
-                swinging.angle += swinging.vel * dt;
-                println!("{} -> {}", swinging.vel, swinging.angle);
-
-                let player_pos = access.query::<&Positioned>(entity).unwrap();
-                let mut player_vel =
-                    access.query::<&mut Velocitized>(entity).unwrap();
-                // Trying to just update the player loc ideally is prone to drift
-                let ideal_player_loc = swinging.anchor_pos
-                    - Vec2::from_angle(swinging.angle - TAU / 4.0)
-                        * ROD_ANCHOR_DIST;
-                let vel = ideal_player_loc
-                    - vec2(player_pos.pos.x as _, player_pos.pos.y as _);
-                player_vel.vel = vel / dt;
-
-                if !controls.swing || ks.touching_any() {
-                    access.lazy_despawn(swinging.swingee);
-
-                    let cheated_angle =
-                        if swinging.angle.abs() > ANGLE_TO_CHEAT_VEL_AT {
-                            let reduced_extra = (swinging.angle.abs()
-                                - ANGLE_TO_CHEAT_VEL_AT)
-                                / ANGLE_VEL_CHEAT_FACTOR;
-                            swinging.angle.signum()
-                                * (ANGLE_TO_CHEAT_VEL_AT + reduced_extra)
-                        } else {
-                            swinging.angle
-                        };
-                    let launch_vel = -Vec2::from_angle(cheated_angle)
-                        * swinging.vel
-                        * ROD_ANCHOR_DIST
-                        * SWING_VEL_TO_VEL_RATE;
-
-                    player_vel.vel = launch_vel;
-                    self.state = PlayerState::Normal(Normal {
-                        state: NormalState::Falling,
-                        was_swinging: true,
-                    });
-                }
+                self.swinging_movement(access, entity, controls, dt)
             }
         }
 
@@ -244,6 +188,72 @@ impl PlayerController {
         if controls.reset {
             let mut pos = access.query::<&mut Positioned>(entity).unwrap();
             pos.pos = CoordVec::new(0, 0);
+        }
+    }
+
+    fn swinging_movement(
+        &mut self,
+        access: &ListenerWorldAccess,
+        entity: Entity,
+        controls: ControlState,
+        dt: f32,
+    ) {
+        let swinging = match self.state {
+            PlayerState::Swinging(ref mut it) => it,
+            _ => unreachable!(),
+        };
+
+        let ks = access.query::<&KinematicState>(entity).unwrap();
+
+        swinging.angle = (swinging.angle + PI).rem_euclid(TAU) - PI;
+
+        let gravity = if swinging.angle.abs() > SWING_TOO_FAR_ANGLE {
+            SWING_TOO_FAR_GRAVITY
+        } else {
+            SWING_GRAVITY
+        };
+        let control = controls.movement.x.signum();
+        let acc = -gravity * swinging.angle.sin() + -control * PLAYER_SWING_ACC;
+        let friction = (swinging.vel * swinging.vel)
+            * SWING_FRICTION
+            * swinging.vel.signum();
+
+        swinging.vel += (acc * dt - friction * dt)
+            .clamp(-SWING_TERMINAL_VEL, SWING_TERMINAL_VEL);
+        swinging.angle += swinging.vel * dt;
+
+        println!("{} -> {}", swinging.vel, swinging.angle);
+        let player_pos = access.query::<&Positioned>(entity).unwrap();
+        let mut player_vel = access.query::<&mut Velocitized>(entity).unwrap();
+        let ideal_player_loc = swinging.anchor_pos
+            - Vec2::from_angle(swinging.angle - TAU / 4.0) * ROD_ANCHOR_DIST;
+        let vel = ideal_player_loc
+            - vec2(player_pos.pos.x as _, player_pos.pos.y as _);
+        player_vel.vel = vel / dt;
+
+        if !controls.swing || ks.touching_any() {
+            access.lazy_despawn(swinging.swingee);
+
+            let cheated_angle = if swinging.angle.abs() > ANGLE_TO_CHEAT_VEL_AT
+            {
+                let reduced_extra = (swinging.angle.abs()
+                    - ANGLE_TO_CHEAT_VEL_AT)
+                    / ANGLE_VEL_CHEAT_FACTOR;
+                swinging.angle.signum()
+                    * (ANGLE_TO_CHEAT_VEL_AT + reduced_extra)
+            } else {
+                swinging.angle
+            };
+            let launch_vel = -Vec2::from_angle(cheated_angle)
+                * swinging.vel
+                * ROD_ANCHOR_DIST
+                * SWING_VEL_TO_VEL_RATE;
+
+            player_vel.vel = launch_vel;
+            self.state = PlayerState::Normal(Normal {
+                state: NormalState::Falling,
+                was_swinging: true,
+            });
         }
     }
 

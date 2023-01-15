@@ -14,7 +14,7 @@ pub struct Camera {
 impl Resource for Camera {}
 
 impl Camera {
-    const EASING_AMOUNT: i32 = 4;
+    const EASING_AMOUNT: i32 = 10;
 
     pub fn new() -> Self {
         Self {
@@ -41,8 +41,8 @@ impl Camera {
                 GAME_HEIGHT as i32,
             ),
         ] {
-            let delta = *slot - player;
-            let ideal_pos = player + delta / Self::EASING_AMOUNT;
+            let delta = player - *slot;
+            let ideal_pos = *slot + delta / Self::EASING_AMOUNT;
             *slot = ideal_pos.clamp(
                 corner + window_size / 2,
                 corner + size - window_size / 2,
