@@ -96,7 +96,8 @@ impl StateGameplay {
         );
 
         let mut es = Vec::new();
-        // We don't care about the "entity" "doing" the rect scanning... but we need to give broccoli one, wah
+        // We don't care about the "entity" "doing" the rect scanning...
+        // but we need to give broccoli one, wah
         tree.find_all_intersect_rect(
             AabbPin::new(&mut EntityAABB::new(
                 Entity::recompose(0, 0),
@@ -109,7 +110,8 @@ impl StateGameplay {
         );
         es.sort_unstable_by(|a, b| {
             ZLevel::sort(a.2, b.2)
-                // we want things "above" => less Y to be rendered first, so a cmp b
+                // we want things "above" => less Y to be rendered first, so a
+                // cmp b
                 .then(a.1.y.start.total_cmp(&b.1.y.start))
         });
 

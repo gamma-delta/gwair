@@ -34,7 +34,7 @@ pub fn setup_world(world: &mut World) {
 
     //
 
-    world.insert_resource_default::<Camera>();
+    world.insert_resource(Camera::new());
     world.insert_resource_default::<HitboxTracker>();
 }
 
