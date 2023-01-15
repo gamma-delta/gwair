@@ -13,7 +13,7 @@ use crate::{
             Collider, ColoredHitbox, HasDims, Mover, Positioned, ZLevel,
         },
         message::{MsgDraw, MsgPhysicsTick, MsgTick},
-        resource::{Camera, FabCtxHolder, HitboxTracker},
+        resource::{Camera, FabCtxHolder, HitboxTracker, ThePlayerEntity},
     },
     fabctx::FabCtx,
     geom::{EntityAABB, Hitbox},
@@ -38,13 +38,14 @@ impl StateGameplay {
 
         let ctx = FabCtx {};
 
-        fabber
+        let player = fabber
             .instantiate(
                 "player",
                 world.spawn().with(Positioned::new(CoordVec::new(0, 0))),
                 &ctx,
             )
             .unwrap();
+        world.insert_resource(ThePlayerEntity(player));
 
         world.insert_resource(FabCtxHolder(ctx));
         setup_temp_level(&mut world);
@@ -61,6 +62,14 @@ impl StateGameplay {
 
         self.world.dispatch_to_all(MsgTick);
         self.world.finalize();
+
+        {
+            let player =
+                self.world.read_resource::<ThePlayerEntity>().unwrap().0;
+            let pos = self.world.query::<&Positioned>(player).unwrap().pos;
+            let mut cam = self.world.write_resource::<Camera>().unwrap();
+            cam.update(pos);
+        }
     }
 
     pub fn on_draw(&self) {
@@ -78,7 +87,7 @@ impl StateGameplay {
         let mut tree = Tree::new(hitboxeds.as_mut_slice());
 
         let camera_center =
-            self.world.read_resource::<Camera>().unwrap().center;
+            self.world.read_resource::<Camera>().unwrap().center();
         let view_rect = Hitbox::new(
             camera_center.x,
             camera_center.y,

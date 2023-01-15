@@ -13,8 +13,8 @@ use crate::{
     controls::ControlState,
     ecm::{
         component::{KinematicState, Positioned, Velocitized},
-        message::MsgPhysicsTick,
-        resource::FabCtxHolder,
+        message::{MsgPhysicsTick, MsgTick},
+        resource::{Camera, FabCtxHolder},
     },
     fabctx::FabCtx,
     resources::Resources,
@@ -49,14 +49,14 @@ const JUMP_BUFFER_LEN: f32 = 0.1;
 const ROD_ANCHOR_DIST: f32 = 12.0;
 const VEL_TO_SWING_VEL_RATE: f32 = 0.05;
 const SWING_GRAVITY: f32 = 5.0;
-const SWING_FRICTION: f32 = 0.1;
+const SWING_FRICTION: f32 = 0.05;
 const SWING_TOO_FAR_ANGLE: f32 = TAU / 4.0;
 const SWING_TOO_FAR_GRAVITY: f32 = 10.0;
 
 const PLAYER_SWING_ACC: f32 = 4.0;
 
 const SWING_TERMINAL_VEL: f32 = 10.0;
-const SWING_VEL_TO_VEL_RATE: f32 = 2.2;
+const SWING_VEL_TO_VEL_RATE: f32 = 2.15;
 /// If the angle is over horizontal, cheat in favor of the player
 /// and make it a little smaller.
 const ANGLE_TO_CHEAT_VEL_AT: f32 = TAU * 0.225;
@@ -183,8 +183,9 @@ impl PlayerController {
                 } else {
                     SWING_GRAVITY
                 };
+                let control = controls.movement.x.signum();
                 let acc = -gravity * swinging.angle.sin()
-                    + -controls.movement.x * PLAYER_SWING_ACC;
+                    + -control * PLAYER_SWING_ACC;
 
                 let friction = (swinging.vel * swinging.vel)
                     * SWING_FRICTION

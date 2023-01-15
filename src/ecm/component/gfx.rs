@@ -34,7 +34,7 @@ impl Component for ColoredHitbox {
             if let (Some(pos), Some((w, h))) = (msg.pos, msg.dims) {
                 let cam = access.read_resource::<Camera>().unwrap();
 
-                let corner = pos - CoordVec::new(w / 2, h / 2) - cam.center;
+                let corner = pos - CoordVec::new(w / 2, h / 2) - cam.center();
                 mq::draw_rectangle(
                     corner.x as f32,
                     corner.y as f32,
@@ -64,7 +64,7 @@ impl Component for DrawTexture {
             if let (Some(pos), Some((w, h))) = (msg.pos, msg.dims) {
                 let cam = access.read_resource::<Camera>().unwrap();
 
-                let corner = pos - CoordVec::new(w / 2, h / 2) - cam.center;
+                let corner = pos - CoordVec::new(w / 2, h / 2) - cam.center();
 
                 let assets = Resources::get();
                 let tex = assets.get_texture(&this.tex);
