@@ -1,5 +1,7 @@
 //! https://gmtk.itch.io/platformer-toolkit/devlog/395523/behind-the-code
 
+mod stats;
+
 use std::f32::consts::{PI, TAU};
 
 use aglet::{CoordVec, Direction8};
@@ -25,64 +27,9 @@ use crate::{
   resources::Resources,
 };
 
+use self::stats::PlayerStats;
+
 use super::HasDims;
-
-const WALK_TERMINAL_VEL: f32 = 12.0 * 8.0;
-/// Can express these in terms of "seconds reqd to get to/from terminal vel."
-const WALK_ACCEL: f32 = WALK_TERMINAL_VEL / 0.3;
-/// "stop moving in 2 frames"
-const WALK_FRICTION: f32 = WALK_TERMINAL_VEL * 60.0 / 2.0;
-const WALK_TURN_ACCEL: f32 = WALK_TERMINAL_VEL * 60.0;
-
-const JUMP_HEIGHT: f32 = 40.0;
-const TIME_TO_JUMP_APEX: f32 = 0.45;
-/// Derived from kinematics
-const JUMP_IMPULSE_VEL: f32 = 2.0 * JUMP_HEIGHT / TIME_TO_JUMP_APEX;
-/// gravity when rising from a jump
-const JUMP_GRAVITY: f32 = JUMP_IMPULSE_VEL / TIME_TO_JUMP_APEX;
-/// gravity when rising from a jump but not holding jump
-const JUMP_RELEASE_GRAVITY: f32 = JUMP_GRAVITY * 3.0;
-/// normal falling gravity
-const FALLING_GRAVITY: f32 = JUMP_GRAVITY * 2.5;
-/// Grace-period gravity when falling off a ledge
-const COYOTE_GRAVITY: f32 = FALLING_GRAVITY * 0.5;
-
-const FALL_TERMINAL_VEL: f32 = 300.0;
-const PLUMMET_TERMINAL_VEL: f32 = 400.0;
-
-const COYOTE_TIME: f32 = 0.05;
-const JUMP_BUFFER_LEN: f32 = 0.1;
-
-const ROD_ANCHOR_DIST: f32 = 12.0;
-const VEL_TO_SWING_VEL_RATE: f32 = 0.05;
-const SWING_GRAVITY: f32 = 5.0;
-const SWING_FRICTION: f32 = 0.05;
-const SWING_TOO_FAR_ANGLE: f32 = TAU / 4.0;
-const SWING_TOO_FAR_GRAVITY: f32 = 10.0;
-
-const PLAYER_SWING_ACC: f32 = 4.0;
-
-const SWING_TERMINAL_VEL: f32 = 13.0;
-const SWING_VEL_TO_VEL_RATE: f32 = 2.5;
-/// If the player's start swing velocity is between these two, snap it up to
-/// the max one. That way, jumping straight up still has expected behavior,
-/// less feelsbad when you mess up a legitimate grab.
-const START_GRAB_SPEED_CHEAT_MIN: f32 = 1.0;
-const START_GRAB_SPEED_CHEAT_MAX: f32 = 8.0;
-
-/// If the angle is near horiz when releasing, cheat in favor of the player
-/// and make it a little smaller to make it easier to launch
-const ANGLE_TO_CHEAT_LAUNCH_VEL_AT: f32 = TAU * 0.225;
-const ANGLE_LAUNCH_VEL_CHEAT_FACTOR: f32 = 2.0;
-
-/// To try and grab an extant rod, check in a set of ranges....
-const GRAB_EXTANT_STEP_SIZE: f32 = 8.0;
-const GRAB_EXTANT_STEP_COUNT: usize = 4;
-/// The radius from the target swing position you can grab onto a rod.
-const GRAB_EXTANT_SWINGABLE_RADIUS: i32 = 6;
-const GRAB_EXTANT_SWINGABLE_RADIUS_INCREMENT: i32 = 2;
-
-const ROD_DEPLOYMENTS_FROM_GROUND: u32 = 1;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerController {
@@ -95,6 +42,8 @@ pub struct PlayerController {
   #[serde(serialize_with = "ser_hexcol")]
   #[serde(deserialize_with = "de_hexcol")]
   color: Color,
+
+  stats: PlayerStats,
 }
 
 impl Component for PlayerController {
@@ -131,7 +80,9 @@ impl Component for PlayerController {
             controls.movement.normalize()
           };
           let player_pos = access.query::<&Positioned>(me).unwrap();
-          for hb in grab_extant_rod_hbs(player_pos.pos, anchor_delta) {
+          for hb in
+            grab_extant_rod_hbs(player_pos.pos, anchor_delta, &this.stats)
+          {
             mq::draw_rectangle(
               (hb.x() - cam.center().x) as f32,
               (hb.y() - cam.center().y) as f32,
@@ -157,6 +108,8 @@ impl PlayerController {
       color,
 
       state: PlayerState::default(),
+
+      stats: PlayerStats::default(),
     }
   }
 
@@ -180,7 +133,7 @@ impl PlayerController {
 
     let jump_rising_edge = controls.jump && !self.was_pressing_jump;
     if jump_rising_edge {
-      self.jump_buffer_countdown = JUMP_BUFFER_LEN;
+      self.jump_buffer_countdown = self.stats.jump_buffer_len;
     }
     self.jump_buffer_countdown = (self.jump_buffer_countdown - dt).max(0.0);
 
@@ -198,6 +151,8 @@ impl PlayerController {
     access: &ListenerWorldAccess,
     me: Entity,
   ) {
+    let stats = &self.stats;
+
     if let PlayerState::Normal(n) = &mut self.state {
       if controls.swing {
         let state_ok_to_swing = match n.state {
@@ -215,13 +170,14 @@ impl PlayerController {
           let player_pos = access.query::<&Positioned>(me).unwrap();
           let anchor_pos =
             vec2(player_pos.pos.x as f32, player_pos.pos.y as f32)
-              + anchor_delta * ROD_ANCHOR_DIST;
+              + anchor_delta * stats.rod_anchor_dist;
 
           // First try to swing on a rod in the world, prioritize that
           let extant_swingable = {
             let mut trees = access.write_resource::<TreeHolder>().unwrap();
             'found: {
-              for check_hb in grab_extant_rod_hbs(player_pos.pos, anchor_delta)
+              for check_hb in
+                grab_extant_rod_hbs(player_pos.pos, anchor_delta, stats)
               {
                 let out = trees.get_entities_in_box(check_hb, |e| {
                   access.query::<&SwingableOn>(e).is_some()
@@ -268,13 +224,13 @@ impl PlayerController {
             let rej =
               player_vel.vel.reject_from_normalized(anchor_dir).length();
             let perp_dot = player_vel.vel.perp_dot(anchor_dir);
-            let vel = rej * perp_dot.signum() * VEL_TO_SWING_VEL_RATE;
+            let vel = rej * perp_dot.signum() * stats.vel_to_swing_vel_rate;
 
-            let vel = if (START_GRAB_SPEED_CHEAT_MIN
-              ..=START_GRAB_SPEED_CHEAT_MAX)
+            let vel = if (stats.start_grab_speed_cheat_min
+              ..=stats.start_grab_speed_cheat_max)
               .contains(&vel.abs())
             {
-              START_GRAB_SPEED_CHEAT_MAX * vel.signum()
+              stats.start_grab_speed_cheat_max * vel.signum()
             } else {
               vel
             };
@@ -305,6 +261,8 @@ impl PlayerController {
     controls: ControlState,
     dt: f32,
   ) {
+    let stats = &self.stats;
+
     let swinging = match self.state {
       PlayerState::Swinging(ref mut it) => it,
       _ => unreachable!(),
@@ -314,25 +272,29 @@ impl PlayerController {
 
     swinging.angle = (swinging.angle + PI).rem_euclid(TAU) - PI;
 
-    let gravity = if swinging.angle.abs() > SWING_TOO_FAR_ANGLE {
-      SWING_TOO_FAR_GRAVITY
+    let gravity = if swinging.angle.abs() > stats.swing_too_far_angle {
+      stats.swing_too_far_gravity
     } else {
-      SWING_GRAVITY
+      stats.swing_gravity
     };
     let control = controls.movement.x.signum();
-    let acc = -gravity * swinging.angle.sin() + -control * PLAYER_SWING_ACC;
-    let friction =
-      (swinging.vel * swinging.vel) * SWING_FRICTION * swinging.vel.signum();
+    let acc =
+      -gravity * swinging.angle.sin() + -control * stats.player_swing_acc;
+    let friction = (swinging.vel * swinging.vel)
+      * stats.swing_friction
+      * swinging.vel.signum();
 
     swinging.vel += acc * dt - friction * dt;
-    swinging.vel = swinging.vel.clamp(-SWING_TERMINAL_VEL, SWING_TERMINAL_VEL);
+    swinging.vel = swinging
+      .vel
+      .clamp(-stats.swing_terminal_vel, stats.swing_terminal_vel);
     swinging.angle += swinging.vel * dt;
 
     println!("{} -> {}", swinging.vel, swinging.angle);
     let player_pos = access.query::<&Positioned>(entity).unwrap();
     let mut player_vel = access.query::<&mut Velocitized>(entity).unwrap();
     let ideal_player_loc = swinging.anchor_pos
-      - Vec2::from_angle(swinging.angle - TAU / 4.0) * ROD_ANCHOR_DIST;
+      - Vec2::from_angle(swinging.angle - TAU / 4.0) * stats.rod_anchor_dist;
     let vel =
       ideal_player_loc - vec2(player_pos.pos.x as _, player_pos.pos.y as _);
     player_vel.vel = vel / dt;
@@ -343,19 +305,20 @@ impl PlayerController {
         // self.rod_deployments_left += 1;
       }
 
-      let cheated_angle = if swinging.angle.abs() > ANGLE_TO_CHEAT_LAUNCH_VEL_AT
-      {
-        let reduced_extra = (swinging.angle.abs()
-          - ANGLE_TO_CHEAT_LAUNCH_VEL_AT)
-          / ANGLE_LAUNCH_VEL_CHEAT_FACTOR;
-        swinging.angle.signum() * (ANGLE_TO_CHEAT_LAUNCH_VEL_AT + reduced_extra)
-      } else {
-        swinging.angle
-      };
+      let cheated_angle =
+        if swinging.angle.abs() > stats.angle_to_cheat_launch_vel_at {
+          let reduced_extra = (swinging.angle.abs()
+            - stats.angle_to_cheat_launch_vel_at)
+            / stats.angle_launch_vel_cheat_factor;
+          swinging.angle.signum()
+            * (stats.angle_to_cheat_launch_vel_at + reduced_extra)
+        } else {
+          swinging.angle
+        };
       let launch_vel = -Vec2::from_angle(cheated_angle)
         * swinging.vel
-        * ROD_ANCHOR_DIST
-        * SWING_VEL_TO_VEL_RATE;
+        * stats.rod_anchor_dist
+        * stats.swing_vel_to_vel_rate;
 
       player_vel.vel = launch_vel;
       self.state = PlayerState::Normal(Normal {
@@ -372,6 +335,8 @@ impl PlayerController {
     controls: ControlState,
     access: &ListenerWorldAccess,
   ) {
+    let stats = &self.stats;
+
     let normal = match self.state {
       PlayerState::Normal(ref mut it) => it,
       _ => unreachable!(),
@@ -382,13 +347,13 @@ impl PlayerController {
     let on_ground = ks.touching(Direction8::South);
 
     if on_ground {
-      self.rod_deployments_left = ROD_DEPLOYMENTS_FROM_GROUND;
+      self.rod_deployments_left = stats.rod_deployments_from_ground;
     }
 
-    let walk_acc = WALK_ACCEL;
-    let walk_dec = WALK_FRICTION;
-    let walk_turn = WALK_TURN_ACCEL;
-    let target_vel_x = controls.movement.x * WALK_TERMINAL_VEL;
+    let walk_acc = stats.walk_accel;
+    let walk_dec = stats.walk_friction;
+    let walk_turn = stats.walk_turn_accel;
+    let target_vel_x = controls.movement.x * stats.walk_terminal_vel;
     let acc = if controls.movement.x == 0.0 {
       walk_dec
     } else if player_vel.vel.x == 0.0
@@ -404,7 +369,7 @@ impl PlayerController {
       NormalState::OnGround => {
         if !on_ground {
           Some(NormalState::FallingFromLedge {
-            coyote_countdown: COYOTE_TIME,
+            coyote_countdown: stats.coyote_time,
           })
         } else if self.jump_buffer_countdown > 0.0 {
           Some(NormalState::JumpingUp)
@@ -440,34 +405,34 @@ impl PlayerController {
     };
     if let Some(state2) = state2 {
       if matches!(&state2, NormalState::JumpingUp) {
-        player_vel.vel.y = -JUMP_IMPULSE_VEL;
+        player_vel.vel.y = -stats.jump_impulse_vel;
       }
       println!("changing to {:?}", &state2);
       normal.state = state2;
     }
 
     let gravity = match normal.state {
-      NormalState::OnGround => FALLING_GRAVITY,
+      NormalState::OnGround => stats.falling_gravity,
       NormalState::FallingFromLedge { coyote_countdown } => {
         if coyote_countdown > 0.0 {
-          COYOTE_GRAVITY
+          stats.coyote_gravity
         } else {
-          FALLING_GRAVITY
+          stats.falling_gravity
         }
       }
       NormalState::JumpingUp => {
         if controls.jump {
-          JUMP_GRAVITY
+          stats.jump_gravity
         } else {
-          JUMP_RELEASE_GRAVITY
+          stats.jump_release_gravity
         }
       }
-      NormalState::Falling => FALLING_GRAVITY,
+      NormalState::Falling => stats.falling_gravity,
     };
     let terminal_vel = if controls.movement.y > 0.0 {
-      PLUMMET_TERMINAL_VEL
+      stats.plummet_terminal_vel
     } else {
-      FALL_TERMINAL_VEL
+      stats.fall_terminal_vel
     };
     player_vel.vel.y =
       move_towards(player_vel.vel.y, terminal_vel, gravity * dt);
@@ -550,12 +515,13 @@ impl ComponentFactory<FabCtx> for PlayerFactory {
 fn grab_extant_rod_hbs(
   player_pos: CoordVec,
   anchor_delta: Vec2,
-) -> impl Iterator<Item = Hitbox> {
-  (1..GRAB_EXTANT_STEP_COUNT).map(move |i| {
+  stats: &PlayerStats,
+) -> impl Iterator<Item = Hitbox> + '_ {
+  (1..stats.grab_extant_step_count).map(move |i| {
     let check_center = vec2(player_pos.x as f32, player_pos.y as f32)
-      + anchor_delta * (i as f32 * GRAB_EXTANT_STEP_SIZE);
-    let radius = GRAB_EXTANT_SWINGABLE_RADIUS
-      + i as i32 * GRAB_EXTANT_SWINGABLE_RADIUS_INCREMENT;
+      + anchor_delta * (i as f32 * stats.grab_extant_step_size);
+    let radius = stats.grab_extant_swingable_radius
+      + i as i32 * stats.grab_extant_swingable_radius_increment;
     Hitbox::new(
       check_center.x.round() as i32,
       check_center.y.round() as i32,
