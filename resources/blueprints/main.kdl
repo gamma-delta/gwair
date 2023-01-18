@@ -8,10 +8,19 @@ player {
     colored-hitbox 0xffcc50_ff
 }
 
-rod {
+swingpoint {
+    physic-body width=4 height=4
+    zlevel 200
+    colored-hitbox 0x4000ff_ff
+    swingable-on
+}
+
+immovable-rod {
     physic-body width=4 height=4
     zlevel 200
     colored-hitbox 0x00ff00_ff
+    swingable-on
+    pickuppable-rod
 }
 
 wall {
