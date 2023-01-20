@@ -58,8 +58,11 @@ pub struct PlayerStats {
   /// The radius from the target swing position you can grab onto a rod.
   pub grab_extant_swingable_radius: i32,
   pub grab_extant_swingable_radius_increment: i32,
+  pub grab_extant_start_size: i32,
 
   pub rod_deployments_from_ground: u32,
+
+  pub debugdraw_grab_hbs: bool,
 }
 
 impl Default for PlayerStats {
@@ -77,7 +80,7 @@ impl Default for PlayerStats {
     let falling_gravity = jump_gravity * 2.5;
     let coyote_gravity = falling_gravity * 0.5;
 
-    let fall_terminal_vel = 300.0;
+    let fall_terminal_vel = 270.0;
     let plummet_terminal_vel = 400.0;
 
     let coyote_time = 0.05;
@@ -94,8 +97,8 @@ impl Default for PlayerStats {
 
     let swing_terminal_vel = 13.0;
     let swing_vel_to_vel_rate = 2.5;
-    let start_grab_speed_cheat_min = 1.0;
-    let start_grab_speed_cheat_max = 8.0;
+    let start_grab_speed_cheat_min = 1.5;
+    let start_grab_speed_cheat_max = 9.0;
 
     let angle_to_cheat_launch_vel_at = TAU * 0.225;
     let angle_launch_vel_cheat_factor = 2.0;
@@ -104,8 +107,11 @@ impl Default for PlayerStats {
     let grab_extant_step_count = 4;
     let grab_extant_swingable_radius = 6;
     let grab_extant_swingable_radius_increment = 2;
+    let grab_extant_start_size = 8;
 
     let rod_deployments_from_ground = 1;
+
+    let debugdraw_grab_hbs = true;
 
     Self {
       walk_terminal_vel,
@@ -140,7 +146,9 @@ impl Default for PlayerStats {
       grab_extant_step_count,
       grab_extant_swingable_radius,
       grab_extant_swingable_radius_increment,
+      grab_extant_start_size,
       rod_deployments_from_ground,
+      debugdraw_grab_hbs,
     }
   }
 }

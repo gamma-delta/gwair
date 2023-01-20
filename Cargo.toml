@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-palkia = "0.9.6"
-dialga = "0.4.1"
+palkia = "0.10.0"
+dialga = "0.4.2"
 knurdy = "0.1.2"
 gerrymander = "0.1.0"
 puppetmaster = "0.1.0"

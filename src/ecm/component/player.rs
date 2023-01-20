@@ -72,7 +72,7 @@ impl Component for PlayerController {
           this.color,
         );
 
-        {
+        if this.stats.debugdraw_grab_hbs {
           let controls = ControlState::calculate();
           let anchor_delta = if controls.movement.length_squared() < 0.0001 {
             Vec2::new(0.0, -1.0)
@@ -300,7 +300,12 @@ impl PlayerController {
     player_vel.vel = vel / dt;
 
     if !controls.swing || ks.touching_any() {
-      if access.query::<&PickuppableRod>(swinging.swingee).is_some() {
+      // If we *just* placed our own rod this frame, trying to see if it's
+      // swingable will panic because it's not finalized yet.
+      // For now assume any half-formed entity is ours.
+      if access.liveness(swinging.swingee) == EntityLiveness::PartiallySpawned
+        || access.query::<&PickuppableRod>(swinging.swingee).is_some()
+      {
         access.lazy_despawn(swinging.swingee);
         // self.rod_deployments_left += 1;
       }
@@ -517,16 +522,27 @@ fn grab_extant_rod_hbs(
   anchor_delta: Vec2,
   stats: &PlayerStats,
 ) -> impl Iterator<Item = Hitbox> + '_ {
-  (1..stats.grab_extant_step_count).map(move |i| {
-    let check_center = vec2(player_pos.x as f32, player_pos.y as f32)
-      + anchor_delta * (i as f32 * stats.grab_extant_step_size);
-    let radius = stats.grab_extant_swingable_radius
-      + i as i32 * stats.grab_extant_swingable_radius_increment;
-    Hitbox::new(
-      check_center.x.round() as i32,
-      check_center.y.round() as i32,
-      radius * 2,
-      radius * 2,
-    )
-  })
+  let start_center =
+    vec2(player_pos.x as f32, player_pos.y as f32) + anchor_delta;
+  let start_hb = Hitbox::new(
+    start_center.x.round() as i32,
+    start_center.y.round() as i32,
+    stats.grab_extant_start_size * 2,
+    stats.grab_extant_start_size * 2,
+  );
+
+  std::iter::once(start_hb).chain((1..stats.grab_extant_step_count).map(
+    move |i| {
+      let check_center = vec2(player_pos.x as f32, player_pos.y as f32)
+        + anchor_delta * (i as f32 * stats.grab_extant_step_size);
+      let radius = stats.grab_extant_swingable_radius
+        + i as i32 * stats.grab_extant_swingable_radius_increment;
+      Hitbox::new(
+        check_center.x.round() as i32,
+        check_center.y.round() as i32,
+        radius * 2,
+        radius * 2,
+      )
+    },
+  ))
 }
