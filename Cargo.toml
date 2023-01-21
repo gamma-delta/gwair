@@ -25,6 +25,7 @@ itertools = "0.10.5"
 kdl = "4.6.0"
 serde = "1.0.152"
 smol_str = "0.1.23"
+gilrs = "0.10.1"
 
 [profile.dev]
 opt-level = 1

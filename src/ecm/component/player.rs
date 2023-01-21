@@ -44,6 +44,11 @@ pub struct PlayerController {
   color: Color,
 
   stats: PlayerStats,
+
+  /// For the benefit of drawing.
+  /// The skip attr will "deserialize" it as default
+  #[serde(skip)]
+  cached_controls: Option<ControlState>,
 }
 
 impl Component for PlayerController {
@@ -73,23 +78,24 @@ impl Component for PlayerController {
         );
 
         if this.stats.debugdraw_grab_hbs {
-          let controls = ControlState::calculate();
-          let anchor_delta = if controls.movement.length_squared() < 0.0001 {
-            Vec2::new(0.0, -1.0)
-          } else {
-            controls.movement.normalize()
-          };
-          let player_pos = access.query::<&Positioned>(me).unwrap();
-          for hb in
-            grab_extant_rod_hbs(player_pos.pos, anchor_delta, &this.stats)
-          {
-            mq::draw_rectangle(
-              (hb.x() - cam.center().x) as f32,
-              (hb.y() - cam.center().y) as f32,
-              hb.w() as _,
-              hb.h() as _,
-              mq::Color::from_rgba(255, 120, 0, 100),
-            );
+          if let Some(ref controls) = this.cached_controls {
+            let anchor_delta = if controls.movement.length_squared() < 0.0001 {
+              Vec2::new(0.0, -1.0)
+            } else {
+              controls.movement.normalize()
+            };
+            let player_pos = access.query::<&Positioned>(me).unwrap();
+            for hb in
+              grab_extant_rod_hbs(player_pos.pos, anchor_delta, &this.stats)
+            {
+              mq::draw_rectangle(
+                (hb.x() - cam.center().x) as f32,
+                (hb.y() - cam.center().y) as f32,
+                hb.w() as _,
+                hb.h() as _,
+                mq::Color::from_rgba(255, 120, 0, 100),
+              );
+            }
           }
         }
 
@@ -110,6 +116,8 @@ impl PlayerController {
       state: PlayerState::default(),
 
       stats: PlayerStats::default(),
+
+      cached_controls: None,
     }
   }
 
@@ -143,6 +151,8 @@ impl PlayerController {
       let mut pos = access.query::<&mut Positioned>(me).unwrap();
       pos.pos = CoordVec::new(0, 0);
     }
+
+    self.cached_controls = Some(controls);
   }
 
   fn check_start_swinging(
@@ -320,10 +330,14 @@ impl PlayerController {
         } else {
           swinging.angle
         };
-      let launch_vel = -Vec2::from_angle(cheated_angle)
-        * swinging.vel
-        * stats.rod_anchor_dist
-        * stats.swing_vel_to_vel_rate;
+
+      // the angle is rotated, so it *should* have x be sin and y be cos...
+      // but we also want to launch normal to the launch angle!
+      // so it undoes itself
+      let raw_launch_x = -cheated_angle.cos() * stats.swing_vel_to_vel_rate_x;
+      let raw_launch_y = -cheated_angle.sin() * stats.swing_vel_to_vel_rate_y;
+      let launch_vel =
+        vec2(raw_launch_x, raw_launch_y) * swinging.vel * stats.rod_anchor_dist;
 
       player_vel.vel = launch_vel;
       self.state = PlayerState::Normal(Normal {

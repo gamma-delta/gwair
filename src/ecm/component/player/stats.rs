@@ -37,10 +37,12 @@ pub struct PlayerStats {
   pub swing_too_far_angle: f32,
   pub swing_too_far_gravity: f32,
 
+  /// Amount the player's controls add to the swing
   pub player_swing_acc: f32,
 
   pub swing_terminal_vel: f32,
-  pub swing_vel_to_vel_rate: f32,
+  pub swing_vel_to_vel_rate_x: f32,
+  pub swing_vel_to_vel_rate_y: f32,
   /// If the player's start swing velocity is between these two, snap it up to
   /// the max one. That way, jumping straight up still has expected behavior,
   /// less feelsbad when you mess up a legitimate grab.
@@ -96,7 +98,8 @@ impl Default for PlayerStats {
     let player_swing_acc = 4.0;
 
     let swing_terminal_vel = 13.0;
-    let swing_vel_to_vel_rate = 2.5;
+    let swing_vel_to_vel_rate_y = 2.5;
+    let swing_vel_to_vel_rate_x = swing_vel_to_vel_rate_y * 0.9;
     let start_grab_speed_cheat_min = 1.5;
     let start_grab_speed_cheat_max = 9.0;
 
@@ -111,7 +114,7 @@ impl Default for PlayerStats {
 
     let rod_deployments_from_ground = 1;
 
-    let debugdraw_grab_hbs = true;
+    let debugdraw_grab_hbs = false;
 
     Self {
       walk_terminal_vel,
@@ -137,7 +140,8 @@ impl Default for PlayerStats {
       swing_too_far_gravity,
       player_swing_acc,
       swing_terminal_vel,
-      swing_vel_to_vel_rate,
+      swing_vel_to_vel_rate_x,
+      swing_vel_to_vel_rate_y,
       start_grab_speed_cheat_min,
       start_grab_speed_cheat_max,
       angle_to_cheat_launch_vel_at,
