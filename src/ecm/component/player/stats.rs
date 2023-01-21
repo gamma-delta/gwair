@@ -72,8 +72,6 @@ pub struct PlayerStats {
   pub grab_extant_swingable_radius_increment: i32,
   pub grab_extant_start_size: i32,
 
-  pub rod_deployments_from_ground: u32,
-
   pub debugdraw_grab_hbs: bool,
 }
 
@@ -132,9 +130,7 @@ impl Default for PlayerStats {
     let grab_extant_swingable_radius_increment = 2;
     let grab_extant_start_size = 8;
 
-    let rod_deployments_from_ground = 1;
-
-    let debugdraw_grab_hbs = true;
+    let debugdraw_grab_hbs = false;
 
     Self {
       walk_terminal_vel,
@@ -179,7 +175,6 @@ impl Default for PlayerStats {
       grab_extant_swingable_radius,
       grab_extant_swingable_radius_increment,
       grab_extant_start_size,
-      rod_deployments_from_ground,
       debugdraw_grab_hbs,
     }
   }

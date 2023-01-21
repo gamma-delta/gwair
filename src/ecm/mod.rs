@@ -33,7 +33,6 @@ pub fn setup_world(world: &mut World) {
   world.register_component::<PlayerController>();
 
   world.register_component::<SwingableOn>();
-  world.register_component::<PickuppableRod>();
 
   //
 
@@ -57,7 +56,6 @@ pub fn setup_fabber(fab: &mut EntityFab) {
   fab.register_serde::<DrawTexture>("texture");
 
   fab.register_serde::<SwingableOn>("swingable-on");
-  fab.register_serde::<PickuppableRod>("pickuppable-rod");
 
   fab.register("player", PlayerFactory);
 }
