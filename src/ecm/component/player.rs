@@ -22,7 +22,7 @@ use crate::{
     resource::{Camera, FabCtxHolder, TreeHolder},
   },
   fabctx::FabCtx,
-  geom::Hitbox,
+  geom::{signum0, Hitbox},
   gfx::{de_hexcol, hexcol, ser_hexcol},
   resources::Resources,
 };
@@ -369,20 +369,36 @@ impl PlayerController {
       self.rod_deployments_left = stats.rod_deployments_from_ground;
     }
 
-    let walk_acc = stats.walk_accel;
-    let walk_dec = stats.walk_friction;
-    let walk_turn = stats.walk_turn_accel;
-    let target_vel_x = controls.movement.x * stats.walk_terminal_vel;
-    let acc = if controls.movement.x == 0.0 {
-      walk_dec
-    } else if player_vel.vel.x == 0.0
-      || controls.movement.x.signum() == player_vel.vel.x.signum()
+    let (accel, friction, turn_accel, terminal_vel, overfriction) = if on_ground
     {
-      walk_acc
+      (
+        stats.walk_accel,
+        stats.walk_friction,
+        stats.walk_turn_accel,
+        stats.walk_terminal_vel,
+        stats.walk_overfast_friction,
+      )
     } else {
-      walk_turn
+      (
+        stats.air_accel,
+        stats.air_friction,
+        stats.air_turn_accel,
+        stats.air_terminal_vel,
+        stats.air_overfast_friction,
+      )
     };
-    player_vel.vel.x = move_towards(player_vel.vel.x, target_vel_x, acc * dt);
+
+    let target_vel_x = controls.movement.x * terminal_vel;
+    let (acc, dec) = if player_vel.vel.x == 0.0
+      || signum0(controls.movement.x) != signum0(player_vel.vel.x.signum())
+    {
+      // from a standstill, or when turning
+      (accel, friction)
+    } else {
+      (turn_accel, overfriction)
+    };
+    player_vel.vel.x =
+      accelerate_towards(player_vel.vel.x, target_vel_x, acc * dt, dec * dt);
 
     let state2 = match normal.state {
       NormalState::OnGround => {
@@ -448,25 +464,46 @@ impl PlayerController {
       }
       NormalState::Falling => stats.falling_gravity,
     };
-    let terminal_vel = if controls.movement.y > 0.0 {
-      stats.plummet_terminal_vel
+    let (terminal_vel, decel) = if controls.movement.y > 0.0 {
+      (stats.plummet_terminal_vel, stats.plummet_friction_y)
     } else {
-      stats.fall_terminal_vel
+      (stats.fall_terminal_vel, stats.fall_friction_y)
     };
-    player_vel.vel.y =
-      move_towards(player_vel.vel.y, terminal_vel, gravity * dt);
+    player_vel.vel.y = accelerate_towards(
+      player_vel.vel.y,
+      terminal_vel,
+      gravity * dt,
+      decel * dt,
+    );
   }
 }
 
-fn move_towards(src: f32, target: f32, max_delta: f32) -> f32 {
-  if max_delta == 0.0 || src == target {
+fn accelerate_towards(src: f32, target: f32, accel: f32, decel: f32) -> f32 {
+  if accel == 0.0 || src == target {
     return src;
   }
 
+  // if we are going *faster* than the target, use decel;
+  // otherwise use accel.
+  // the problem is figuring out what "faster" means.
+  // we know if the target is pointing positive, negative, or zero...
   let target_delta = target - src;
-  let sign = target_delta.signum();
-  let delta = max_delta.min(target_delta.abs());
-  src + delta * sign
+  let acc = if target.abs() > src.abs() {
+    accel.min(target_delta.abs())
+  } else {
+    decel.min(target_delta.abs())
+  };
+
+  src + acc * target_delta.signum()
+}
+
+#[test]
+fn acc() {
+  let mut v = 10.0;
+  for _ in 0..30 {
+    v = accelerate_towards(v, -5.0, 0.5, 1.0);
+    println!("{:?}", v);
+  }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

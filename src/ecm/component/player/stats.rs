@@ -5,11 +5,18 @@ use std::f32::consts::TAU;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PlayerStats {
   pub walk_terminal_vel: f32,
-  /// Can express these in terms of "seconds reqd to get to/from terminal vel."
   pub walk_accel: f32,
-  /// "stop moving in 2 frames"
   pub walk_friction: f32,
   pub walk_turn_accel: f32,
+  /// if we're going TOO FAST how do we slow down
+  pub walk_overfast_friction: f32,
+
+  /// these are all x-vel only
+  pub air_terminal_vel: f32,
+  pub air_accel: f32,
+  pub air_friction: f32,
+  pub air_turn_accel: f32,
+  pub air_overfast_friction: f32,
 
   pub jump_height: f32,
   pub time_to_jump_apex: f32,
@@ -26,6 +33,9 @@ pub struct PlayerStats {
 
   pub fall_terminal_vel: f32,
   pub plummet_terminal_vel: f32,
+  /// if we're going TOO FAST in the y, how quick do we slow down
+  pub fall_friction_y: f32,
+  pub plummet_friction_y: f32,
 
   pub coyote_time: f32,
   pub jump_buffer_len: f32,
@@ -70,9 +80,17 @@ pub struct PlayerStats {
 impl Default for PlayerStats {
   fn default() -> Self {
     let walk_terminal_vel = 12.0 * 8.0;
+    // get up to speed in 0.3 seconds
     let walk_accel = walk_terminal_vel / 0.3;
     let walk_friction = walk_terminal_vel * 60.0 / 2.0;
-    let walk_turn_accel = walk_terminal_vel * 60.0;
+    let walk_turn_accel = walk_terminal_vel * 60.0 / 1.0;
+    let walk_overfast_friction = walk_terminal_vel * 60.0 / 10.0;
+
+    let air_terminal_vel = walk_terminal_vel;
+    let air_accel = air_terminal_vel * 60.0 / 8.0;
+    let air_friction = air_terminal_vel * 60.0 / 16.0;
+    let air_turn_accel = air_terminal_vel * 60.0 / 8.0;
+    let air_overfast_friction = air_terminal_vel * 60.0 / 30.0;
 
     let jump_height = 40.0;
     let time_to_jump_apex = 0.45;
@@ -83,7 +101,9 @@ impl Default for PlayerStats {
     let coyote_gravity = falling_gravity * 0.5;
 
     let fall_terminal_vel = 270.0;
+    let fall_friction_y = fall_terminal_vel * 60.0 / 15.0;
     let plummet_terminal_vel = 400.0;
+    let plummet_friction_y = plummet_terminal_vel * 60.0 / 30.0;
 
     let coyote_time = 0.05;
     let jump_buffer_len = 0.1;
@@ -121,6 +141,12 @@ impl Default for PlayerStats {
       walk_accel,
       walk_friction,
       walk_turn_accel,
+      walk_overfast_friction,
+      air_terminal_vel,
+      air_accel,
+      air_friction,
+      air_turn_accel,
+      air_overfast_friction,
       jump_height,
       time_to_jump_apex,
       jump_impulse_vel,
@@ -130,6 +156,8 @@ impl Default for PlayerStats {
       coyote_gravity,
       fall_terminal_vel,
       plummet_terminal_vel,
+      fall_friction_y,
+      plummet_friction_y,
       coyote_time,
       jump_buffer_len,
       rod_anchor_dist,
