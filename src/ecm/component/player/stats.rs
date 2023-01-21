@@ -79,7 +79,7 @@ pub struct PlayerStats {
 
 impl Default for PlayerStats {
   fn default() -> Self {
-    let walk_terminal_vel = 12.0 * 8.0;
+    let walk_terminal_vel = 14.0 * 8.0;
     // get up to speed in 0.3 seconds
     let walk_accel = walk_terminal_vel / 0.3;
     let walk_friction = walk_terminal_vel * 60.0 / 2.0;
@@ -87,7 +87,7 @@ impl Default for PlayerStats {
     let walk_overfast_friction = walk_terminal_vel * 60.0 / 10.0;
 
     let air_terminal_vel = walk_terminal_vel;
-    let air_accel = air_terminal_vel * 60.0 / 8.0;
+    let air_accel = air_terminal_vel * 60.0 / 16.0;
     let air_friction = air_terminal_vel * 60.0 / 16.0;
     let air_turn_accel = air_terminal_vel * 60.0 / 8.0;
     let air_overfast_friction = air_terminal_vel * 60.0 / 30.0;
@@ -134,7 +134,7 @@ impl Default for PlayerStats {
 
     let rod_deployments_from_ground = 1;
 
-    let debugdraw_grab_hbs = false;
+    let debugdraw_grab_hbs = true;
 
     Self {
       walk_terminal_vel,

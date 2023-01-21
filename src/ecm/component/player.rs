@@ -389,13 +389,19 @@ impl PlayerController {
     };
 
     let target_vel_x = controls.movement.x * terminal_vel;
-    let (acc, dec) = if player_vel.vel.x == 0.0
-      || signum0(controls.movement.x) != signum0(player_vel.vel.x.signum())
+    let (acc, dec) = if controls.movement.x == 0.0 {
+      // slowing down to a stop
+      (turn_accel, friction)
+    } else if player_vel.vel.x == 0.0
+      || signum0(controls.movement.x) == signum0(player_vel.vel.x)
     {
-      // from a standstill, or when turning
-      (accel, friction)
+      // from a standstill, or when moving in the same direction
+      // as the control. speed up with normal walk speed, slow down
+      // more slowly.
+      (accel, overfriction)
     } else {
-      (turn_accel, overfriction)
+      // turning around.
+      (turn_accel, friction)
     };
     player_vel.vel.x =
       accelerate_towards(player_vel.vel.x, target_vel_x, acc * dt, dec * dt);
